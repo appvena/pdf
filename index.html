@@ -30,6 +30,7 @@
   }
   button{font-family:inherit;color:inherit;cursor:pointer;border:none;background:none}
   ::selection{background:var(--gold);color:#14161B}
+  .page ::selection{background:rgba(76,110,245,.35);color:inherit}
   ::-webkit-scrollbar{width:10px;height:10px}
   ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:8px;border:2px solid transparent;background-clip:content-box}
   ::-webkit-scrollbar-track{background:transparent}
@@ -75,7 +76,7 @@
   /* ============ STAGE ============ */
   .stage{grid-row:2;display:grid;grid-template-columns:78px 1fr 292px;min-height:0}
 
-  /* ---- Tool rail (kapsul kaca) ---- */
+  /* ---- Tool rail ---- */
   .rail-wrap{display:flex;align-items:center;justify-content:center;pointer-events:none}
   .rail{
     pointer-events:auto;display:flex;flex-direction:column;align-items:center;gap:5px;padding:10px 8px;
@@ -116,7 +117,10 @@
   }
   .page canvas{display:block;position:absolute;inset:0}
   .text-layer,.anno-layer{position:absolute;inset:0}
+  /* KUNCI PERBAIKAN: kedua lapisan tembus-klik; hanya elemen di dalamnya yang interaktif */
   .text-layer{pointer-events:none}
+  .anno-layer{pointer-events:none}
+  .anno{position:absolute;pointer-events:auto}
 
   .native-text{
     position:absolute;color:transparent;white-space:pre;transform-origin:0 0;
@@ -127,24 +131,23 @@
     outline:1.5px dashed var(--gold);background:rgba(201,166,107,.14);
   }
 
-  .anno{position:absolute}
   .anno.text,.anno.edit{
     min-width:8px;white-space:pre-wrap;outline:none;line-height:1.25;border-radius:2px;cursor:text;
   }
   .anno.edit{line-height:1;white-space:pre}
-  .anno.text[contenteditable="true"],.anno.edit[contenteditable="true"]{
-    box-shadow:0 0 0 1.5px var(--gold), 0 4px 14px rgba(0,0,0,.2);
+  .anno.text[contenteditable],.anno.edit[contenteditable]{
+    box-shadow:0 0 0 1.5px var(--gold), 0 4px 14px rgba(0,0,0,.2);cursor:text;
   }
   .anno.image img{display:block;width:100%;height:100%;pointer-events:none;user-select:none;-webkit-user-drag:none}
   .anno.selected{box-shadow:0 0 0 1.5px var(--gold)}
-  .tool-select .anno.text,.tool-select .anno.image{cursor:move}
+  .tool-select .anno.text:not([contenteditable]),.tool-select .anno.image{cursor:move}
   .rz{
     position:absolute;right:-7px;bottom:-7px;width:14px;height:14px;border-radius:4px;
     background:var(--gold);border:2px solid #fff;cursor:nwse-resize;display:none;box-shadow:0 2px 6px rgba(0,0,0,.4);
   }
   .anno.selected .rz{display:block}
 
-  /* toolbar per halaman — di slot, TIDAK ikut rotasi */
+  /* toolbar per halaman */
   .page-head{
     position:absolute;top:-40px;left:50%;transform:translateX(-50%);
     display:flex;align-items:center;gap:2px;padding:4px;border-radius:11px;
@@ -199,10 +202,7 @@
     box-shadow:var(--sh-pop);cursor:pointer;
   }
   .drop.over{border-color:var(--gold);background:rgba(201,166,107,.08);transform:scale(1.012)}
-  .drop .ic{
-    width:66px;height:66px;margin:0 auto 22px;color:var(--gold);
-    filter:drop-shadow(0 6px 18px rgba(201,166,107,.35));
-  }
+  .drop .ic{width:66px;height:66px;margin:0 auto 22px;color:var(--gold);filter:drop-shadow(0 6px 18px rgba(201,166,107,.35))}
   .drop h2{font-family:var(--fd);font-size:27px;font-weight:600;letter-spacing:.01em;margin-bottom:12px}
   .drop p{color:var(--muted);font-size:14px;margin-bottom:26px;line-height:1.7}
 
@@ -340,6 +340,7 @@
       <div class="meta" id="docMeta">
         <span class="fname">Belum ada file</span>
         <div>Halaman: <b id="mPages">—</b></div>
+        <div>Teks dapat diedit: <b id="mText">—</b></div>
         <div>Anotasi &amp; suntingan: <b id="mAnno">0</b></div>
       </div>
       <button class="mini" id="addBlank" disabled>
@@ -350,10 +351,10 @@
     <div class="isec">
       <div class="ititle">Petunjuk</div>
       <p class="hint">
-        <b>Klik teks PDF</b> → langsung sunting di tempat.<br>
+        <b>Klik teks PDF</b> → langsung sunting di tempat, kursor muncul di titik klik.<br>
         <b>Alat Teks</b> → klik area kosong untuk teks baru.<br>
         <b>Pilih</b> → seret objek, tarik sudut gambar untuk ubah ukuran.<br>
-        <span class="kbd">Del</span> hapus objek · <span class="kbd">Esc</span> selesai · <span class="kbd">Ctrl+Z</span> urungkan · <span class="kbd">Ctrl+S</span> ekspor.
+        <span class="kbd">Del</span> hapus · <span class="kbd">Esc</span> selesai · <span class="kbd">Ctrl+Z</span> urungkan · <span class="kbd">Ctrl+S</span> ekspor.
       </p>
     </div>
   </aside>
@@ -373,10 +374,17 @@
 
 <script>
 /* ================================================================
-   Inkline v2 — © Darkness 2026
-   pdf.js  : render halaman + ekstraksi text layer (teks native bisa diklik & diedit)
-   pdf-lib : ekspor PDF asli + suntingan (cover + teks pengganti, coretan, gambar)
-   Semua koordinat anotasi dalam POINT PDF (top-down, ruang tak-terputar).
+   Inkline v3 — © Darkness 2026
+   Perbaikan kritis dari v2:
+   1. .anno-layer menutupi text-layer → klik tak pernah sampai ke teks
+      PDF. Kini kedua lapisan pointer-events:none; hanya elemen di
+      dalamnya (anno / native-text) yang interaktif.
+   2. Klik "tambah teks" tidak preventDefault → fokus browser default
+      langsung mem-blur editor → teks kosong terhapus. Diperbaiki.
+   3. Penjaga [contenteditable="true"] tak cocok dgn plaintext-only →
+      kursor tak bisa ditempatkan. Kini pakai isContentEditable +
+      contenteditable="true" universal + paste plaintext.
+   4. Kursor kini muncul tepat di titik klik (caretRangeFromPoint).
    ================================================================ */
 pdfjsLib.GlobalWorkerOptions.workerSrc =
   'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -392,14 +400,12 @@ const workspace=$('#workspace'), doc=$('#doc'), empty=$('#empty');
 
 const state={
   pdfjsDoc:null, originalBytes:null, fileName:'',
-  pages:[],                // {id, originalIndex, rotation, wpt, hpt}
-  textItems:new Map(),     // originalIndex -> [{str,x,top,bl,w,h,size}] dalam point
-  annotations:[],          // text | edit | pen | highlight | image
+  pages:[], textItems:new Map(), annotations:[],
   scale:1.2, tool:'select', selected:null,
   color:'#111827', penW:2.5, hlColor:'#FFD43B', hlW:14, fontSize:16,
-  pendingImage:null, history:[],
+  pendingImage:null, history:[], textCount:0,
 };
-const pageEls={}; // pageId -> {slot,page,base,dcv,tlayer,alayer}
+const pageEls={};
 
 /* ---------- util ---------- */
 const hex2rgb=h=>{h=h.replace('#','');return{r:parseInt(h.slice(0,2),16)/255,g:parseInt(h.slice(2,4),16)/255,b:parseInt(h.slice(4,6),16)/255};};
@@ -413,7 +419,7 @@ const latin1=s=>(s||'').replace(/[\u2018\u2019\u02BC]/g,"'").replace(/[\u201C\u2
 
 function toast(msg,spin=false){
   const t=$('#toast'); t.innerHTML=(spin?'<span class="sp"></span>':'')+msg; t.classList.add('show');
-  clearTimeout(t._t); if(!spin)t._t=setTimeout(()=>t.classList.remove('show'),2100);
+  clearTimeout(t._t); if(!spin)t._t=setTimeout(()=>t.classList.remove('show'),2400);
 }
 const hideToast=()=>$('#toast').classList.remove('show');
 const setStatus=t=>$('#stStatus').textContent=t;
@@ -439,37 +445,39 @@ async function loadPDF(buf,name){
     state.originalBytes=new Uint8Array(buf.slice(0));
     state.fileName=name||'dokumen.pdf';
     state.pdfjsDoc=await pdfjsLib.getDocument({data:new Uint8Array(buf.slice(0))}).promise;
-    state.pages=[];state.annotations=[];state.history=[];state.selected=null;state.textItems.clear();
+    state.pages=[];state.annotations=[];state.history=[];state.selected=null;
+    state.textItems.clear();state.textCount=0;
 
     for(let i=0;i<state.pdfjsDoc.numPages;i++){
       const pg=await state.pdfjsDoc.getPage(i+1);
       const vp=pg.getViewport({scale:1});
       state.pages.push({id:nid(),originalIndex:i,rotation:0,wpt:vp.width,hpt:vp.height});
 
-      // --- ekstrak teks native (untuk klik-edit) ---
       const tc=await pg.getTextContent();
       const items=[];
       for(const it of tc.items){
-        if(!it.str || !it.str.trim())continue;
+        if(!it.str||!it.str.trim())continue;
         const tr=pdfjsLib.Util.transform(vp.transform,it.transform);
-        const ang=Math.atan2(tr[1],tr[0]);
-        if(Math.abs(ang)>0.02)continue;               // lewati teks miring/rotasi
+        if(Math.abs(Math.atan2(tr[1],tr[0]))>0.02)continue;   // lewati teks miring
         const fh=Math.hypot(tr[2],tr[3])||10;
-        const bl=tr[5];                                // baseline (top-down, point)
+        const bl=tr[5];
         items.push({str:it.str,x:tr[4],bl,top:bl-fh*0.86,w:it.width||fh*it.str.length*0.5,h:fh,size:fh});
       }
       state.textItems.set(i,items);
+      state.textCount+=items.length;
     }
     empty.style.display='none';
     ['exportBtn','zoomIn','zoomOut','fitBtn','addBlank'].forEach(id=>$('#'+id).disabled=false);
     $('#undoBtn').disabled=true;
     fitWidth(false);
     await renderDocument(); updateMeta();
-    hideToast(); setStatus('Dokumen dimuat'); toast('Siap — klik teks mana pun untuk menyunting.');
+    hideToast(); setStatus('Dokumen dimuat');
+    if(state.textCount>0) toast(`${state.textCount} blok teks siap disunting — klik saja pada teksnya.`);
+    else toast('PDF ini tampaknya hasil scan (tanpa teks). Gunakan alat Teks untuk menimpa.');
   }catch(e){console.error(e);hideToast();toast('Gagal membaca PDF. Pastikan file valid & tidak terkunci.');}
 }
 
-/* ---------- render full document ---------- */
+/* ---------- render dokumen penuh ---------- */
 async function renderDocument(){
   const sc=workspace.scrollTop;
   doc.innerHTML=''; for(const k in pageEls)delete pageEls[k];
@@ -491,7 +499,6 @@ async function buildPage(p){
   page.style.transform=`rotate(${rot}deg)`;
   page._pid=p.id;page._rot=rot;page._w=w;page._h=h;
 
-  // canvas dasar (PDF / putih), resolusi DPR
   const base=document.createElement('canvas');
   base.width=Math.round(w*DPR);base.height=Math.round(h*DPR);
   base.style.width=w+'px';base.style.height=h+'px';
@@ -504,23 +511,19 @@ async function buildPage(p){
   }
   page.appendChild(base);
 
-  // canvas overlay (cover + coretan)
   const dcv=document.createElement('canvas');
   dcv.width=Math.round(w*DPR);dcv.height=Math.round(h*DPR);
   dcv.style.width=w+'px';dcv.style.height=h+'px';
   dcv.style.pointerEvents='none';
   page.appendChild(dcv);
 
-  // text layer (teks native yang bisa diklik)
   const tlayer=document.createElement('div');tlayer.className='text-layer';
   page.appendChild(tlayer);
-
-  // annotation layer
   const alayer=document.createElement('div');alayer.className='anno-layer';
   page.appendChild(alayer);
 
   slot.appendChild(page);
-  slot.appendChild(buildHead(p));           // di SLOT → tidak ikut rotasi
+  slot.appendChild(buildHead(p));
   pageEls[p.id]={slot,page,base,dcv,tlayer,alayer};
 
   refreshPage(p.id);
@@ -528,25 +531,22 @@ async function buildPage(p){
   return slot;
 }
 
-/* ---------- refresh ringan (tanpa render ulang PDF) ---------- */
+/* ---------- refresh ringan ---------- */
 function refreshPage(pid){
   const p=pageById(pid),els=pageEls[pid];if(!p||!els)return;
-  drawOverlay(els.dcv,p,els.base);
+  drawOverlay(els.dcv,p);
   buildTextLayer(els.tlayer,p);
   buildAnnoLayer(els.alayer,p);
 }
-function refreshAllLight(){state.pages.forEach(p=>refreshPage(p.id));}
 
-function drawOverlay(cv,p,base){
+function drawOverlay(cv,p){
   const ctx=cv.getContext('2d');
   ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,cv.width,cv.height);
-  ctx.setTransform(DPR*state.scale,0,0,DPR*state.scale,0,0); // gambar dalam POINT
-  // 1) cover untuk teks yang diedit
+  ctx.setTransform(DPR*state.scale,0,0,DPR*state.scale,0,0);
   annosOf(p.id).filter(a=>a.type==='edit').forEach(a=>{
     ctx.fillStyle=a.cover||'#ffffff';
     ctx.fillRect(a.x-1.5,a.top-2,a.w+3,a.h+4);
   });
-  // 2) coretan
   ctx.lineCap='round';ctx.lineJoin='round';
   annosOf(p.id).filter(a=>a.type==='pen'||a.type==='highlight').forEach(a=>{
     if(!a.points.length)return;
@@ -597,6 +597,7 @@ function buildAnnoLayer(layer,p){
       el.style.fontSize=(a.size*state.scale)+'px';el.style.color=a.color;
       el.style.background=a.cover||'#fff';
       el.style.minWidth=(a.w*state.scale)+'px';
+      el.style.minHeight=(a.h*state.scale)+'px';
       el.innerText=a.text;
     }else if(a.type==='image'){
       el.style.left=(a.x*state.scale)+'px';el.style.top=(a.y*state.scale)+'px';
@@ -611,9 +612,9 @@ function buildAnnoLayer(layer,p){
 /* ---------- header halaman ---------- */
 function buildHead(p){
   const head=document.createElement('div');head.className='page-head';
+  head.innerHTML='<span class="plab"></span>';
   const relabel=()=>{const i=pageIdx(p.id);head.querySelector('.plab').textContent=
     (p.originalIndex>=0?`Hal. ${i+1}`:`Hal. ${i+1} · kosong`);};
-  head.innerHTML='<span class="plab"></span>';
   const mk=(tip,dgr,svg,fn)=>{const b=document.createElement('button');if(dgr)b.className='dgr';
     b.title=tip;b.innerHTML=svg;b.onclick=e=>{e.stopPropagation();fn();};head.appendChild(b);};
   mk('Putar 90°',0,'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v5h-5"/></svg>',
@@ -634,11 +635,11 @@ function buildHead(p){
     async()=>{if(state.pages.length<=1)return toast('Tidak bisa menghapus halaman terakhir.');
       snapshot();state.annotations=state.annotations.filter(a=>a.pageId!==p.id);
       state.pages=state.pages.filter(x=>x.id!==p.id);await renderDocument();updateMeta();});
-  relabel();head._relabel=relabel;
+  relabel();
   return head;
 }
 
-/* ---------- koordinat: klien → point (ruang tak-terputar) ---------- */
+/* ---------- koordinat ---------- */
 function toPt(page,ev){
   const rect=page.querySelector('canvas').getBoundingClientRect();
   const cx=rect.left+rect.width/2,cy=rect.top+rect.height/2;
@@ -652,8 +653,8 @@ function toPt(page,ev){
 /* ---------- interaksi ---------- */
 function attachEvents(page,p,dcv){
   page.addEventListener('pointerdown',e=>{
-    // biarkan caret bekerja di elemen yang sedang diedit
-    if(e.target.closest('[contenteditable="true"]'))return;
+    // sedang mengedit & klik masih di dalam editor → biarkan browser menaruh kursor
+    if(e.target.isContentEditable)return;
 
     const annoEl=e.target.closest('.anno');
     const nativeEl=e.target.closest('.native-text');
@@ -663,15 +664,19 @@ function attachEvents(page,p,dcv){
       if(handle){startResize(e,annoEl,page);return;}
       if(annoEl){
         const a=state.annotations.find(x=>x.id===annoEl.dataset.id);
+        if(!a)return;
         selectAnno(a.id);
-        dragOrEdit(e,annoEl,a,page);          // klik = edit, seret = pindah
+        dragOrEdit(e,annoEl,a,page);
         return;
       }
-      if(nativeEl){e.preventDefault();editNative(p,+nativeEl.dataset.idx);return;}
+      if(nativeEl){e.preventDefault();editNative(p,+nativeEl.dataset.idx,e);return;}
       if(state.tool==='text'){
+        e.preventDefault();                        // FIX: cegah blur instan
         const c=toPt(page,e);addTextAt(p,c.x,c.y);return;
       }
-      selectAnno(null);return;
+      selectAnno(null);
+      if(document.activeElement?.isContentEditable)document.activeElement.blur();
+      return;
     }
     if(state.tool==='erase'){
       if(annoEl){removeAnno(annoEl.dataset.id);return;}
@@ -690,7 +695,7 @@ function attachEvents(page,p,dcv){
   },{passive:true});
 }
 
-/* klik = edit, geser = drag (ambang 4px) */
+/* klik = edit, geser = drag */
 function dragOrEdit(e,el,a,page){
   e.preventDefault();
   const start=toPt(page,e);const ox=a.x,oy=a.y;
@@ -698,16 +703,17 @@ function dragOrEdit(e,el,a,page){
   const draggable=(a.type==='text'||a.type==='image');
   const move=ev=>{
     const c=toPt(page,ev);
-    if(!moved && Math.hypot(c.px-start.px,c.py-start.py)<4)return;
+    if(!moved&&Math.hypot(c.px-start.px,c.py-start.py)<4)return;
     if(!draggable)return;
     if(!snapped){snapshot();snapped=true;}
     moved=true;
     a.x=ox+(c.x-start.x);a.y=oy+(c.y-start.y);
     el.style.left=(a.x*state.scale)+'px';el.style.top=(a.y*state.scale)+'px';
   };
-  const up=()=>{
+  const up=ev=>{
     window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);
-    if(!moved && (a.type==='text'||a.type==='edit')) startEditing(el,a);
+    if(!moved&&(a.type==='text'||a.type==='edit')&&!el.isContentEditable)
+      startEditing(el,a,ev);
   };
   window.addEventListener('pointermove',move);window.addEventListener('pointerup',up);
 }
@@ -726,6 +732,21 @@ function startResize(e,el,page){
   window.addEventListener('pointermove',move);window.addEventListener('pointerup',up);
 }
 
+/* ---------- kursor di titik klik ---------- */
+function caretAt(el,ev){
+  const sel=getSelection();sel.removeAllRanges();
+  let r=null;
+  try{
+    if(ev&&document.caretRangeFromPoint)r=document.caretRangeFromPoint(ev.clientX,ev.clientY);
+    else if(ev&&document.caretPositionFromPoint){
+      const cp=document.caretPositionFromPoint(ev.clientX,ev.clientY);
+      if(cp){r=document.createRange();r.setStart(cp.offsetNode,cp.offset);}
+    }
+  }catch(_){}
+  if(r&&el.contains(r.startContainer)){r.collapse(true);sel.addRange(r);return;}
+  const rr=document.createRange();rr.selectNodeContents(el);rr.collapse(false);sel.addRange(rr);
+}
+
 /* ---------- EDIT TEKS NATIVE ---------- */
 function sampleCover(p,it){
   try{
@@ -736,12 +757,14 @@ function sampleCover(p,it){
     return rgb2hex(d[0],d[1],d[2]);
   }catch(_){return'#ffffff';}
 }
-function editNative(p,idx){
+function editNative(p,idx,ev){
   const items=state.textItems.get(p.originalIndex)||[];
   const it=items[idx];if(!it)return;
-  // sudah ada anno edit untuk item ini? langsung edit
   const exist=annosOf(p.id).find(a=>a.type==='edit'&&a.item===idx);
-  if(exist){const el=pageEls[p.id].alayer.querySelector(`[data-id="${exist.id}"]`);if(el)startEditing(el,exist);return;}
+  if(exist){
+    const el=pageEls[p.id].alayer.querySelector(`[data-id="${exist.id}"]`);
+    if(el)startEditing(el,exist,ev);return;
+  }
   snapshot();
   const a={id:nid(),pageId:p.id,type:'edit',item:idx,orig:it.str,
     x:it.x,top:it.top,bl:it.bl,w:it.w,h:it.h,size:it.size,text:it.str,
@@ -749,7 +772,7 @@ function editNative(p,idx){
   state.annotations.push(a);
   refreshPage(p.id);updateMeta();
   const el=pageEls[p.id].alayer.querySelector(`[data-id="${a.id}"]`);
-  if(el)startEditing(el,a);
+  if(el)startEditing(el,a,ev);
 }
 
 /* ---------- teks baru ---------- */
@@ -759,34 +782,41 @@ function addTextAt(p,x,y){
   state.annotations.push(a);
   refreshPage(p.id);updateMeta();
   const el=pageEls[p.id].alayer.querySelector(`[data-id="${a.id}"]`);
-  if(el)startEditing(el,a);
+  if(el)startEditing(el,a,null);
 }
 
-function startEditing(el,a){
+/* ---------- mesin edit ---------- */
+function startEditing(el,a,ev){
+  if(el.isContentEditable)return;               // idempoten
   selectAnno(a.id);
-  el.setAttribute('contenteditable','plaintext-only');
-  // fallback browser lama
-  if(el.contentEditable!=='plaintext-only')el.setAttribute('contenteditable','true');
-  el.focus();
-  const rng=document.createRange();rng.selectNodeContents(rng.selectNodeContents?el:el);
-  rng.selectNodeContents(el);const sel=getSelection();sel.removeAllRanges();sel.addRange(rng);
-  el.addEventListener('paste',ev=>{
-    ev.preventDefault();
-    document.execCommand('insertText',false,(ev.clipboardData||window.clipboardData).getData('text/plain'));
-  });
+  el.setAttribute('contenteditable','true');
+  el.spellcheck=false;
+  el.focus({preventScroll:false});
+  caretAt(el,ev);
+
+  el.onpaste=pe=>{
+    pe.preventDefault();
+    const t=(pe.clipboardData||window.clipboardData).getData('text/plain');
+    document.execCommand('insertText',false,a.type==='edit'?t.replace(/\n+/g,' '):t);
+  };
+  el.onkeydown=ke=>{
+    ke.stopPropagation();
+    if(ke.key==='Escape'){ke.preventDefault();el.blur();return;}
+    if(ke.key==='Enter'){
+      ke.preventDefault();
+      if(a.type==='edit'){el.blur();}
+      else document.execCommand('insertLineBreak');
+    }
+  };
   const finish=()=>{
+    el.onpaste=null;el.onkeydown=null;
     el.removeAttribute('contenteditable');
     a.text=el.innerText.replace(/\n$/,'');
     if(a.type==='text'&&!a.text.trim()){quietRemove(a.id);return;}
-    if(a.type==='edit'&&a.text===a.orig){quietRemove(a.id);return;}  // tak berubah → pulihkan asli
+    if(a.type==='edit'&&a.text===a.orig){quietRemove(a.id);return;}
     refreshPage(a.pageId);updateMeta();renderInspector();
   };
   el.addEventListener('blur',finish,{once:true});
-  el.addEventListener('keydown',ev=>{
-    if(ev.key==='Escape'){ev.preventDefault();el.blur();}
-    if(ev.key==='Enter'&&a.type==='edit'){ev.preventDefault();el.blur();} // edit native = satu baris
-    ev.stopPropagation();
-  });
 }
 
 /* ---------- gambar ---------- */
@@ -845,6 +875,7 @@ function quietRemove(id){
 
 /* ---------- tools & inspector ---------- */
 function setTool(t){
+  if(document.activeElement?.isContentEditable)document.activeElement.blur();
   state.tool=t;state.selected=null;
   document.querySelectorAll('.tool').forEach(b=>b.classList.toggle('active',b.dataset.tool===t));
   document.body.className='tool-'+t;
@@ -889,18 +920,15 @@ function renderInspector(){
     return;
   }
 
-  const map={
-    select:['Pilih','<p class="hint">Klik <b>teks PDF</b> untuk langsung menyuntingnya. Klik objek untuk memilih; klik sekali lagi untuk mengedit teks; seret untuk memindah.</p>'],
-    text:['Alat Teks',''],pen:['Alat Pena',''],highlight:['Alat Stabilo',''],
-    image:['Alat Gambar',''],erase:['Hapus Objek','<p class="hint">Klik objek, suntingan teks, atau coretan untuk menghapus. Menghapus suntingan teks akan memulihkan teks asli.</p>']
-  };
-  title.textContent=map[state.tool][0];
-  if(map[state.tool][1])body.innerHTML=map[state.tool][1];
-  if(state.tool==='text'){
+  const heads={select:'Pilih',text:'Alat Teks',pen:'Alat Pena',highlight:'Alat Stabilo',image:'Alat Gambar',erase:'Hapus Objek'};
+  title.textContent=heads[state.tool];
+  if(state.tool==='select'){
+    body.innerHTML='<p class="hint">Klik <b>teks PDF</b> untuk langsung menyuntingnya. Klik objek untuk memilih, klik lagi untuk mengedit, seret untuk memindah.</p>';
+  }else if(state.tool==='text'){
     body.appendChild(cf('Warna teks',state.color,PALETTE,c=>{state.color=c;renderInspector();}));
     body.appendChild(rng('Ukuran font',state.fontSize,8,72,1,' pt',v=>state.fontSize=v));
     const p=document.createElement('p');p.className='hint';p.style.marginTop='12px';
-    p.innerHTML='Klik <b>teks PDF</b> untuk menyunting, atau klik <b>area kosong</b> untuk teks baru.';
+    p.innerHTML='Klik <b>teks PDF</b> untuk menyunting, atau klik <b>area kosong</b> untuk teks baru. <span class="kbd">Enter</span> = baris baru, <span class="kbd">Esc</span> = selesai.';
     body.appendChild(p);
   }else if(state.tool==='pen'){
     body.appendChild(cf('Warna tinta',state.color,PALETTE,c=>{state.color=c;renderInspector();}));
@@ -915,12 +943,15 @@ function renderInspector(){
     const b=document.createElement('button');b.className='mini';
     b.textContent=state.pendingImage?'Ganti gambar':'Pilih gambar';
     b.onclick=()=>$('#imgInput').click();body.appendChild(b);
+  }else if(state.tool==='erase'){
+    body.innerHTML='<p class="hint">Klik objek, suntingan teks, atau coretan untuk menghapus. Menghapus suntingan teks akan memulihkan teks asli.</p>';
   }
 }
 
 function updateMeta(){
   $('#docMeta').querySelector('.fname').textContent=state.fileName||'Belum ada file';
   $('#mPages').textContent=state.pages.length||'—';
+  $('#mText').textContent=state.pdfjsDoc?state.textCount+' blok':'—';
   $('#mAnno').textContent=state.annotations.length;
 }
 
@@ -944,6 +975,7 @@ function fitWidth(rerender=true){
 /* ---------- EKSPOR ---------- */
 async function exportPDF(){
   if(!state.pages.length)return;
+  if(document.activeElement?.isContentEditable)document.activeElement.blur();
   toast('Menyusun PDF…',true);
   try{
     const{PDFDocument,rgb,degrees,StandardFonts}=PDFLib;
@@ -1044,7 +1076,7 @@ document.querySelectorAll('.tool').forEach(b=>b.onclick=()=>{setTool(b.dataset.t
 
 document.addEventListener('keydown',e=>{
   const editing=document.activeElement?.isContentEditable;
-  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();if(!editing)undo();return;}
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){if(!editing){e.preventDefault();undo();}return;}
   if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();exportPDF();return;}
   if(editing)return;
   if((e.key==='Delete'||e.key==='Backspace')&&state.selected){e.preventDefault();removeAnno(state.selected);return;}
