@@ -253,6 +253,25 @@
   .zoombar button svg{width:15px;height:15px}
   #zoomVal{min-width:42px;text-align:center;color:var(--gold-2)}
 
+  /* ---- bilah format mengambang saat mengedit teks ---- */
+  .fmt-bar{
+    position:fixed;z-index:150;display:flex;align-items:center;gap:3px;padding:5px;
+    background:var(--glass-2);backdrop-filter:blur(14px);border:1px solid var(--line-2);
+    border-radius:11px;box-shadow:var(--sh-pop);
+  }
+  .fmt-bar button{
+    height:32px;min-width:40px;padding:0 9px;border-radius:8px;color:var(--muted);font-size:13px;
+    display:grid;place-items:center;transition:.12s;border:1px solid transparent;
+  }
+  .fmt-bar button:hover{background:rgba(255,255,255,.08);color:var(--text)}
+  .fmt-bar button.on{background:var(--gold-dim);border-color:var(--gold);color:var(--gold-2)}
+  .fmt-bar .fsep{width:1px;height:22px;background:var(--line-2);margin:0 3px;flex:none}
+  .fmt-bar .f-helv{font-family:Helvetica,Arial,sans-serif}
+  .fmt-bar .f-times{font-family:"Times New Roman",Times,serif}
+  .fmt-bar .f-courier{font-family:"Courier New",Courier,monospace}
+  .fmt-bar .sb{font-weight:800}
+  .fmt-bar .si{font-family:Georgia,serif}
+
   .toast{
     position:fixed;bottom:56px;left:50%;transform:translateX(-50%) translateY(16px);
     background:#05060a;border:1px solid var(--line-2);color:#fff;padding:12px 20px;border-radius:12px;
@@ -805,12 +824,46 @@ function addTextAt(p,x,y,ev){
   const el=pageEls[p.id].alayer.querySelector(`[data-id="${a.id}"]`);if(el)startEditing(el,a,null);
 }
 
+/* ---------- bilah format mengambang (font / B / I) saat mengedit ---------- */
+let fmtBar=null;
+function hideFmtBar(){if(fmtBar){fmtBar.remove();fmtBar=null;window.removeEventListener('scroll',fmtBar_pos,true);}}
+let fmtBar_pos=()=>{};
+function showFmtBar(el,a){
+  hideFmtBar();
+  let styled=false;
+  const bar=document.createElement('div');bar.className='fmt-bar';
+  // penting: pointerdown preventDefault → fokus & kursor tetap di editor (keyboard tak tertutup)
+  const mk=(label,cls,active,fn)=>{
+    const b=document.createElement('button');b.innerHTML=label;if(cls)b.className=cls;if(active)b.classList.add('on');
+    b.addEventListener('pointerdown',ev=>{ev.preventDefault();ev.stopPropagation();
+      if(!styled){snapshot();styled=true;}fn();sync();});
+    return b;
+  };
+  const fbtns={};
+  ['helv','times','courier'].forEach(k=>{const b=mk(FONT_LABEL[k],'f-'+k,a.font===k,()=>{a.font=k;applyFontCss(el,a);});fbtns[k]=b;bar.appendChild(b);});
+  const sep=document.createElement('span');sep.className='fsep';bar.appendChild(sep);
+  const bB=mk('B','sb',a.bold,()=>{a.bold=!a.bold;applyFontCss(el,a);});
+  const bI=mk('<span style="font-style:italic">I</span>','si',a.italic,()=>{a.italic=!a.italic;applyFontCss(el,a);});
+  bar.append(bB,bI);
+  const sync=()=>{Object.keys(fbtns).forEach(k=>fbtns[k].classList.toggle('on',a.font===k));
+    bB.classList.toggle('on',a.bold);bI.classList.toggle('on',a.italic);};
+  document.body.appendChild(bar);
+  fmtBar=bar;
+  fmtBar_pos=()=>{ if(!fmtBar)return; const r=el.getBoundingClientRect();
+    const w=bar.offsetWidth||190;
+    bar.style.top=Math.max(64,r.top-48)+'px';
+    bar.style.left=Math.min(window.innerWidth-w-8,Math.max(8,r.left))+'px'; };
+  fmtBar_pos();
+  window.addEventListener('scroll',fmtBar_pos,true);
+}
+
 /* ---------- mesin edit ---------- */
 function startEditing(el,a,ev){
   if(el.isContentEditable)return;
   selectAnno(a.id);
   el.setAttribute('contenteditable','true');el.spellcheck=false;
   el.focus({preventScroll:false});caretAt(el,ev);
+  showFmtBar(el,a);
   el.onpaste=pe=>{pe.preventDefault();
     const t=(pe.clipboardData||window.clipboardData).getData('text/plain');
     document.execCommand('insertText',false,a.type==='edit'?t.replace(/\n+/g,' '):t);};
@@ -818,6 +871,7 @@ function startEditing(el,a,ev){
     if(ke.key==='Escape'){ke.preventDefault();el.blur();return;}
     if(ke.key==='Enter'){ke.preventDefault();if(a.type==='edit'){el.blur();}else document.execCommand('insertLineBreak');}};
   const finish=()=>{
+    hideFmtBar();
     el.onpaste=null;el.onkeydown=null;el.removeAttribute('contenteditable');
     try{const s=getSelection();if(s)s.removeAllRanges();}catch(_){}  // bersihkan sorotan abu-abu
     a.text=el.innerText.replace(/\n$/,'');
