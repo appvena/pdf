@@ -651,6 +651,8 @@ function applyFontCss(el,a){
   el.style.fontFamily=fontCssOf(a);
   el.style.fontWeight=a.bold?'700':'400';
   el.style.fontStyle=a.italic?'italic':'normal';
+  const w=(a.weight||0)*state.scale;                 // ketebalan halus (faux-weight)
+  el.style.webkitTextStroke = w>0 ? (w.toFixed(2)+'px '+(a.color||'#111827')) : '';
 }
 
 function buildAnnoLayer(layer,p){
@@ -930,6 +932,12 @@ function showFmtBar(el,a){
   const bI=document.createElement('button');bI.className='si'+(a.italic?' on':'');bI.innerHTML='<span style="font-style:italic">I</span>';
   pd(bI,()=>{snapOnce();a.italic=!a.italic;applyFontCss(el,a);sync();});
   bar.append(bB,bI);
+  const sep2=document.createElement('span');sep2.className='fsep';
+  const wDn=document.createElement('button');wDn.className='wt';wDn.textContent='T';wDn.style.fontWeight='300';wDn.title='Tipiskan';
+  pd(wDn,()=>{snapOnce();a.weight=Math.max(0,(a.weight||0)-0.12);applyFontCss(el,a);});
+  const wUp=document.createElement('button');wUp.className='wt';wUp.textContent='T';wUp.style.fontWeight='900';wUp.title='Tebalkan';
+  pd(wUp,()=>{snapOnce();a.weight=Math.min(1.4,(a.weight||0)+0.12);applyFontCss(el,a);});
+  bar.append(sep2,wDn,wUp);
   const sync=()=>{bar.querySelectorAll('[data-k]').forEach(b=>b.classList.toggle('on',b.dataset.k===a.font));
     bB.classList.toggle('on',a.bold);bI.classList.toggle('on',a.italic);};
   document.body.appendChild(bar);fmtBar=bar;sync();
@@ -961,7 +969,7 @@ function startEditing(el,a,ev){
     try{const s=getSelection();if(s)s.removeAllRanges();}catch(_){}  // bersihkan sorotan abu-abu
     a.text=el.innerText.replace(/\n$/,'');
     if(a.type==='text'&&!a.text.trim()){quietRemove(a.id);return;}
-    if(a.type==='edit'&&a.text===a.orig&&a.det&&a.font===a.det.font&&a.bold===a.det.bold&&a.italic===a.det.italic){quietRemove(a.id);return;}
+    if(a.type==='edit'&&a.text===a.orig&&a.det&&a.font===a.det.font&&a.bold===a.det.bold&&a.italic===a.det.italic&&!(a.weight)){quietRemove(a.id);return;}
     refreshPage(a.pageId);updateMeta();renderInspector();
   };
   el.addEventListener('blur',finish,{once:true});
@@ -1071,6 +1079,7 @@ function renderInspector(){
     body.appendChild(styleField(()=>sel,annoSet(sel)));
     body.appendChild(cf('Warna teks',sel.color,PALETTE,c=>annoSet(sel)({color:c})));
     body.appendChild(rng('Ukuran font',Math.round(sel.size),6,72,1,' pt',v=>{sel.size=v;refreshPage(sel.pageId);}));
+    body.appendChild(rng('Ketebalan',Math.round((sel.weight||0)*100),0,140,5,'',v=>{sel.weight=v/100;refreshPage(sel.pageId);}));
     if(sel.type==='edit'){const b=document.createElement('button');b.className='mini';b.textContent='Pulihkan teks asli';
       b.onclick=()=>removeAnno(sel.id);body.appendChild(b);}
     return;
@@ -1214,6 +1223,13 @@ async function exportPDF(){
         fontCache[key]=await out.embedFont(StandardFonts[FONT_STD[fam][idx]]);}
       return fontCache[key];
     }
+    // gambar teks dengan ketebalan halus (offset berlapis) bila weight>0
+    const drawWeighted=(page,txt,opts,w)=>{
+      if(w>0){const o=w*0.42;
+        for(const dd of [[o,0],[-o,0],[0,o],[0,-o],[o,o],[-o,-o],[o,-o],[-o,o]])
+          page.drawText(txt,{...opts,x:opts.x+dd[0],y:opts.y+dd[1]});}
+      page.drawText(txt,opts);
+    };
     for(const ps of state.pages){
       let page;
       if(ps.originalIndex>=0){const[cp]=await out.copyPages(src,[ps.originalIndex]);page=out.addPage(cp);}
@@ -1229,11 +1245,11 @@ async function exportPDF(){
             const cc=hex2rgb(a.cover||'#ffffff');
             page.drawRectangle({x:a.x-2,y:H-a.top-a.h-2,width:cw,height:a.h+4,color:rgb(cc.r,cc.g,cc.b)});
             const tc=hex2rgb(a.color);
-            page.drawText(txt,{x:a.x,y:H-a.bl,size:a.size,font:fnt,color:rgb(tc.r,tc.g,tc.b)});
+            drawWeighted(page,txt,{x:a.x,y:H-a.bl,size:a.size,font:fnt,color:rgb(tc.r,tc.g,tc.b)},a.weight||0);
           }else if(a.type==='text'){
             const fnt=await getFont(a);const c=hex2rgb(a.color);
             enc(a.text).split('\n').forEach((ln,i)=>{
-              page.drawText(ln,{x:a.x,y:H-a.y-a.size*0.82-(i*a.size*1.25),size:a.size,font:fnt,color:rgb(c.r,c.g,c.b)});});
+              drawWeighted(page,ln,{x:a.x,y:H-a.y-a.size*0.82-(i*a.size*1.25),size:a.size,font:fnt,color:rgb(c.r,c.g,c.b)},a.weight||0);});
           }else if(a.type==='pen'||a.type==='highlight'){
             if(!a.points.length)continue;
             const d='M '+a.points.map(q=>`${q.x.toFixed(2)} ${q.y.toFixed(2)}`).join(' L ');
