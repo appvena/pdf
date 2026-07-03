@@ -54,6 +54,8 @@
   .brand .mark{font-family:var(--fd);font-weight:600;font-size:21px;letter-spacing:.01em;white-space:nowrap}
   .brand .mark b{color:var(--gold);font-weight:600}
   .brand .sub{font-size:10px;color:var(--muted);letter-spacing:.2em;text-transform:uppercase;white-space:nowrap}
+  .brand .ver{font-family:var(--fm);font-size:10px;color:#191408;background:var(--gold);
+    padding:1px 6px;border-radius:6px;font-weight:600;flex:none;align-self:center}
   .spacer{flex:1;min-width:0}
   .tb-group{display:flex;align-items:center;gap:6px;flex:none}
 
@@ -328,7 +330,7 @@
 <body class="tool-select">
 
 <header class="topbar">
-  <div class="brand"><span class="mark">Ink<b>line</b></span><span class="sub">Editor PDF</span></div>
+  <div class="brand"><span class="mark">Ink<b>line</b></span><span class="ver">v10</span><span class="sub">Editor PDF</span></div>
   <div class="spacer"></div>
   <div class="tb-group">
     <button class="btn" id="openBtn">
@@ -394,6 +396,7 @@
       <div class="ititle">Dokumen</div>
       <div class="meta" id="docMeta">
         <span class="fname">Belum ada file</span>
+        <div>Versi aplikasi: <b style="color:var(--gold-2)">v10 · SRISP 2026</b></div>
         <div>Halaman: <b id="mPages">—</b></div>
         <div>Teks dapat diedit: <b id="mText">—</b></div>
         <div>Anotasi &amp; suntingan: <b id="mAnno">0</b></div>
