@@ -435,11 +435,12 @@
 
 <script>
 /* ================================================================
-   Inkline v8 — © SRISP 2026
-   Baru di v8: penanaman font kustom (fontkit) — muat file .ttf/.otf,
-   dipakai untuk tampilan (FontFace) dan ditanam saat ekspor (semua
-   karakter didukung). Deteksi font otomatis untuk 3 keluarga standar
-   tetap ada; untuk kecocokan persis, muat file font aslinya.
+   Inkline v9 — © SRISP 2026
+   Baru di v9: pencocokan font OTOMATIS dari pustaka online. Nama font
+   asli dideteksi dari PDF, lalu padanan metric-compatible-nya ditarik
+   langsung dari @fontsource (Calibri→Carlito, Cambria→Caladea,
+   Georgia→Gelasio) untuk tampilan + ditanam saat ekspor. Tetap ada
+   font dasar (Helvetica/Times/Courier) & muat font manual (.ttf/.otf).
    ================================================================ */
 pdfjsLib.GlobalWorkerOptions.workerSrc =
   'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -796,10 +797,28 @@ function caretAt(el,ev){
   const rr=document.createRange();rr.selectNodeContents(el);rr.collapse(false);sel.addRange(rr);
 }
 
-/* ---------- deteksi font otomatis (family + tebal/miring) ---------- */
+/* ---------- pencocokan font otomatis dari pustaka online ---------- */
+// padanan metric-compatible (lebar sama → tata letak tidak bergeser)
+const WEBFONTS={calibri:'carlito', cambria:'caladea', georgia:'gelasio'};
+const webCache={};
+async function ensureWebFont(family,weight,italic,label){
+  const key=`${family}-${weight}-${italic?'i':'n'}`;
+  if(webCache[key])return webCache[key];
+  const style=italic?'italic':'normal';
+  const url=`https://cdn.jsdelivr.net/npm/@fontsource/${family}/files/${family}-latin-${weight}-${style}.ttf`;
+  const res=await fetch(url);
+  if(!res.ok)throw new Error('fetch '+res.status);
+  const buf=await res.arrayBuffer();
+  const id='wf'+(uid++), cssFam='inkweb_'+id;
+  const ff=new FontFace(cssFam,buf);await ff.load();document.fonts.add(ff);
+  const rec={id,family:cssFam,bytes:new Uint8Array(buf.slice(0)),
+    label:(label||family)+(weight>=700?' Bold':'')+(italic?' Italic':''),auto:true};
+  state.customFonts.push(rec);webCache[key]=rec;return rec;
+}
+
+/* ---------- deteksi font otomatis (family + tebal/miring + nama asli) ---------- */
 async function detectFont(p,it){
-  let font='helv',bold=false,italic=false;
-  // 1) family dari styles pdf.js (serif / sans / mono)
+  let font='helv',bold=false,italic=false,realKey='',label='';
   try{
     const st=state.textStyles.get(p.originalIndex)||{};
     const fam=((st[it.fontName]&&st[it.fontName].fontFamily)||'').toLowerCase();
@@ -807,7 +826,6 @@ async function detectFont(p,it){
     else if(/serif/.test(fam)&&!/sans/.test(fam)) font='times';
     else font='helv';
   }catch(_){}
-  // 2) tebal/miring dari objek font yang sudah dimuat (nama PostScript asli)
   try{
     const pg=await state.pdfjsDoc.getPage(p.originalIndex+1);
     if(pg.commonObjs.has(it.fontName)){
@@ -818,9 +836,13 @@ async function detectFont(p,it){
       if(/times|georgia|roman|minion|garamond|serif/.test(nm)&&!/sans/.test(nm)) font='times';
       else if(/courier|mono|consol/.test(nm)) font='courier';
       else if(/arial|helvetica|calibri|verdana|tahoma|segoe|sans/.test(nm)) font='helv';
+      // nama asli untuk pencocokan pustaka online
+      if(/calibri/.test(nm)){realKey='calibri';label='Calibri';}
+      else if(/cambria/.test(nm)){realKey='cambria';label='Cambria';}
+      else if(/georgia/.test(nm)){realKey='georgia';label='Georgia';}
     }
   }catch(_){}
-  return {font,bold,italic};
+  return {font,bold,italic,realKey,label};
 }
 
 /* ---------- edit teks native ---------- */
@@ -848,11 +870,20 @@ async function editNative(p,idx,ev){
   const exist=annosOf(p.id).find(a=>a.type==='edit'&&a.item===idx);
   if(exist){const el=pageEls[p.id].alayer.querySelector(`[data-id="${exist.id}"]`);if(el)startEditing(el,exist,ev);return;}
   const det=await detectFont(p,it);                    // deteksi font asli otomatis
+  let font=det.font,bold=det.bold,italic=det.italic;
+  const fam=WEBFONTS[det.realKey];
+  if(fam){                                             // ada padanan online → tarik otomatis
+    try{
+      const rec=await ensureWebFont(fam, bold?700:400, italic, det.label);
+      font='custom:'+rec.id; bold=false; italic=false;   // gaya sudah menyatu di file
+      toast('Font asli terdeteksi ('+det.label+') — dicocokkan otomatis.');
+    }catch(_){ /* offline / gagal ambil → pakai font dasar terdekat */ }
+  }
   snapshot();
   const a={id:nid(),pageId:p.id,type:'edit',item:idx,orig:it.str,
     x:it.x,top:it.top,bl:it.bl,w:it.w,h:it.h,size:it.size,text:it.str,
     color:'#111827',cover:sampleCover(p,it),
-    font:det.font,bold:det.bold,italic:det.italic, det};   // det = baseline utk cek "tak berubah"
+    font,bold,italic, det:{font,bold,italic}};
   state.annotations.push(a);refreshPage(p.id);updateMeta();
   const el=pageEls[p.id].alayer.querySelector(`[data-id="${a.id}"]`);if(el)startEditing(el,a,ev);
 }
