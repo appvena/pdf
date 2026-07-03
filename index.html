@@ -258,16 +258,18 @@
     position:fixed;z-index:150;display:flex;align-items:center;gap:3px;padding:5px;
     background:var(--glass-2);backdrop-filter:blur(14px);border:1px solid var(--line-2);
     border-radius:11px;box-shadow:var(--sh-pop);
-    max-width:calc(100vw - 16px);overflow-x:auto;scrollbar-width:none;
+    max-width:calc(100vw - 16px);flex-wrap:wrap;row-gap:4px;
   }
-  .fmt-bar::-webkit-scrollbar{display:none}
   .fmt-bar button{
-    height:32px;min-width:40px;padding:0 9px;border-radius:8px;color:var(--muted);font-size:13px;flex:none;
+    height:32px;min-width:36px;padding:0 9px;border-radius:8px;color:var(--muted);font-size:13px;flex:none;
     display:grid;place-items:center;transition:.12s;border:1px solid transparent;white-space:nowrap;
   }
   .fmt-bar button:hover{background:rgba(255,255,255,.08);color:var(--text)}
   .fmt-bar button.on{background:var(--gold-dim);border-color:var(--gold);color:var(--gold-2)}
   .fmt-bar button.addf{color:var(--gold-2);font-size:18px;font-weight:600;min-width:34px}
+  .fmt-bar .wgrp{display:flex;align-items:center;gap:3px;padding:0 2px}
+  .fmt-bar .wlab{font-size:11px;color:var(--muted);letter-spacing:.03em;padding:0 2px}
+  .fmt-bar .wt{min-width:30px;font-size:16px;font-weight:700}
   .fmt-bar .fsep{width:1px;height:22px;background:var(--line-2);margin:0 3px;flex:none}
   .fmt-bar .f-helv{font-family:Helvetica,Arial,sans-serif}
   .fmt-bar .f-times{font-family:"Times New Roman",Times,serif}
@@ -917,33 +919,40 @@ function showFmtBar(el,a){
   const snapOnce=()=>{if(!styled){snapshot();styled=true;}};
   const bar=document.createElement('div');bar.className='fmt-bar';
   const pd=(b,fn)=>{b.addEventListener('pointerdown',ev=>{ev.preventDefault();ev.stopPropagation();fn();});return b;};
-  // tombol font (termasuk kustom)
+
+  // --- gaya (paling depan, selalu terlihat) ---
+  const bB=document.createElement('button');bB.className='sb'+(a.bold?' on':'');bB.textContent='B';bB.title='Tebal penuh';
+  pd(bB,()=>{snapOnce();a.bold=!a.bold;applyFontCss(el,a);sync();});
+  const bI=document.createElement('button');bI.className='si'+(a.italic?' on':'');bI.innerHTML='<span style="font-style:italic">I</span>';bI.title='Miring';
+  pd(bI,()=>{snapOnce();a.italic=!a.italic;applyFontCss(el,a);sync();});
+  bar.append(bB,bI);
+
+  // --- ketebalan halus ---
+  const wrap=document.createElement('span');wrap.className='wgrp';
+  const lab=document.createElement('span');lab.className='wlab';lab.textContent='Tebal';
+  const wDn=document.createElement('button');wDn.className='wt';wDn.textContent='–';wDn.title='Tipiskan';
+  pd(wDn,()=>{snapOnce();a.weight=Math.max(0,(a.weight||0)-0.12);applyFontCss(el,a);});
+  const wUp=document.createElement('button');wUp.className='wt';wUp.textContent='+';wUp.title='Tebalkan';
+  pd(wUp,()=>{snapOnce();a.weight=Math.min(1.4,(a.weight||0)+0.12);applyFontCss(el,a);});
+  wrap.append(lab,wDn,wUp);bar.appendChild(wrap);
+
+  const sep=document.createElement('span');sep.className='fsep';bar.appendChild(sep);
+
+  // --- pilihan font ---
   fontOptions().forEach(o=>{
     const b=document.createElement('button');b.className=o.cls||'';b.dataset.k=o.key;b.textContent=o.label;
     if(o.family)b.style.fontFamily=`"${o.family}",sans-serif`;
     pd(b,()=>{snapOnce();a.font=o.key;applyFontCss(el,a);sync();});bar.appendChild(b);
   });
-  // muat font kustom
   const add=document.createElement('button');add.className='addf';add.innerHTML='+';add.title='Muat font (.ttf/.otf)';
   pd(add,()=>$('#fontInput').click());bar.appendChild(add);
-  const sep=document.createElement('span');sep.className='fsep';bar.appendChild(sep);
-  const bB=document.createElement('button');bB.className='sb'+(a.bold?' on':'');bB.textContent='B';
-  pd(bB,()=>{snapOnce();a.bold=!a.bold;applyFontCss(el,a);sync();});
-  const bI=document.createElement('button');bI.className='si'+(a.italic?' on':'');bI.innerHTML='<span style="font-style:italic">I</span>';
-  pd(bI,()=>{snapOnce();a.italic=!a.italic;applyFontCss(el,a);sync();});
-  bar.append(bB,bI);
-  const sep2=document.createElement('span');sep2.className='fsep';
-  const wDn=document.createElement('button');wDn.className='wt';wDn.textContent='T';wDn.style.fontWeight='300';wDn.title='Tipiskan';
-  pd(wDn,()=>{snapOnce();a.weight=Math.max(0,(a.weight||0)-0.12);applyFontCss(el,a);});
-  const wUp=document.createElement('button');wUp.className='wt';wUp.textContent='T';wUp.style.fontWeight='900';wUp.title='Tebalkan';
-  pd(wUp,()=>{snapOnce();a.weight=Math.min(1.4,(a.weight||0)+0.12);applyFontCss(el,a);});
-  bar.append(sep2,wDn,wUp);
+
   const sync=()=>{bar.querySelectorAll('[data-k]').forEach(b=>b.classList.toggle('on',b.dataset.k===a.font));
     bB.classList.toggle('on',a.bold);bI.classList.toggle('on',a.italic);};
   document.body.appendChild(bar);fmtBar=bar;sync();
   fmtBar_pos=()=>{ if(!fmtBar)return; const r=el.getBoundingClientRect();
-    const w=bar.offsetWidth||200;
-    bar.style.top=Math.max(64,r.top-48)+'px';
+    const w=bar.offsetWidth||220, h=bar.offsetHeight||40;
+    bar.style.top=Math.max(60,r.top-h-6)+'px';
     bar.style.left=Math.min(window.innerWidth-w-8,Math.max(8,r.left))+'px'; };
   fmtBar_pos();
   window.addEventListener('scroll',fmtBar_pos,true);
