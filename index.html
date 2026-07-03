@@ -768,10 +768,20 @@ function caretAt(el,ev){
 function sampleCover(p,it){
   try{
     const base=pageEls[p.id].base,ctx=base.getContext('2d');
-    const sx=Math.max(0,Math.round((it.x-4)*state.scale*DPR));
-    const sy=Math.max(0,Math.round((it.top+it.h/2)*state.scale*DPR));
-    const d=ctx.getImageData(Math.min(sx,base.width-1),Math.min(sy,base.height-1),1,1).data;
-    return rgb2hex(d[0],d[1],d[2]);
+    const S=state.scale*DPR;
+    // sampel grid di seluruh kotak teks, ambil piksel PALING TERANG (= latar,
+    // bukan huruf). Menghindari titik gelap/abu-abu di tengah glyph.
+    const x0=it.x*S, x1=(it.x+it.w)*S, y0=it.top*S, y1=(it.top+it.h)*S;
+    let best=[255,255,255], bl=-1;
+    for(let gx=0;gx<=4;gx++)for(let gy=0;gy<=3;gy++){
+      const px=Math.max(0,Math.min(base.width-1, Math.round(x0+(x1-x0)*gx/4)));
+      const py=Math.max(0,Math.min(base.height-1,Math.round(y0+(y1-y0)*gy/3)));
+      const d=ctx.getImageData(px,py,1,1).data;
+      const lum=d[0]+d[1]+d[2];
+      if(lum>bl){bl=lum;best=[d[0],d[1],d[2]];}
+    }
+    if(bl>=720) return '#ffffff';          // mendekati putih → jadikan putih bersih
+    return rgb2hex(best[0],best[1],best[2]);
   }catch(_){return'#ffffff';}
 }
 function editNative(p,idx,ev){
