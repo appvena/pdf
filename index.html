@@ -653,10 +653,16 @@ function buildTextLayer(layer,p){
 }
 
 function applyFontCss(el,a){
-  el.style.fontFamily=fontCssOf(a);
-  el.style.fontWeight=a.bold?'700':'400';
-  el.style.fontStyle=a.italic?'italic':'normal';
-  const w=(a.weight||0)*state.scale;                 // ketebalan halus (faux-weight)
+  const base=fontCssOf(a);
+  if(a.dispFamily){                        // pakai font tertanam asli → cocok persis di layar
+    el.style.fontFamily=`"${a.dispFamily}", ${base}`;
+    el.style.fontWeight='normal';el.style.fontStyle='normal';
+  }else{
+    el.style.fontFamily=base;
+    el.style.fontWeight=a.bold?'700':'400';
+    el.style.fontStyle=a.italic?'italic':'normal';
+  }
+  const w=(a.weight||0)*state.scale;
   el.style.webkitTextStroke = w>0 ? (w.toFixed(2)+'px '+(a.color||'#111827')) : '';
 }
 
@@ -830,7 +836,7 @@ async function ensureWebFont(family,weight,italic,label){
 
 /* ---------- deteksi font otomatis (family + tebal/miring + nama asli) ---------- */
 async function detectFont(p,it){
-  let font='helv',bold=false,italic=false,realKey='',label='';
+  let font='helv',bold=false,italic=false,realKey='',label='',disp='';
   try{
     const st=state.textStyles.get(p.originalIndex)||{};
     const fam=((st[it.fontName]&&st[it.fontName].fontFamily)||'').toLowerCase();
@@ -842,13 +848,14 @@ async function detectFont(p,it){
     const pg=await state.pdfjsDoc.getPage(p.originalIndex+1);
     if(pg.commonObjs.has(it.fontName)){
       const fo=pg.commonObjs.get(it.fontName);
+      disp=(fo&&fo.loadedName)||'';                 // font tertanam asli → tampilan persis
       const nm=((fo&&(fo.name||fo.loadedName))||'').toLowerCase();
       bold  = !!(fo&&fo.bold)   || /bold|black|heavy|semibold|-bd|,bd/.test(nm);
       italic= !!(fo&&fo.italic) || /italic|oblique|-it|,it/.test(nm);
       if(/times|georgia|roman|minion|garamond|serif/.test(nm)&&!/sans/.test(nm)) font='times';
       else if(/courier|mono|consol/.test(nm)) font='courier';
       else if(/arial|helvetica|calibri|verdana|tahoma|segoe|sans/.test(nm)) font='helv';
-      // nama asli untuk pencocokan pustaka online
+      // nama asli untuk pencocokan pustaka online (untuk ekspor)
       if(/calibri/.test(nm)){realKey='calibri';label='Calibri';}
       else if(/cambria/.test(nm)){realKey='cambria';label='Cambria';}
       else if(/georgia/.test(nm)){realKey='georgia';label='Georgia';}
@@ -857,7 +864,7 @@ async function detectFont(p,it){
       else if(/arial|helvetica/.test(nm)){realKey='arial';label='Arial';}
     }
   }catch(_){}
-  return {font,bold,italic,realKey,label};
+  return {font,bold,italic,realKey,label,disp};
 }
 
 /* ---------- edit teks native ---------- */
@@ -898,7 +905,7 @@ async function editNative(p,idx,ev){
   const a={id:nid(),pageId:p.id,type:'edit',item:idx,orig:it.str,
     x:it.x,top:it.top,bl:it.bl,w:it.w,h:it.h,size:it.size,text:it.str,
     color:'#111827',cover:sampleCover(p,it),
-    font,bold,italic, det:{font,bold,italic}};
+    font,bold,italic, det:{font,bold,italic}, dispFamily:det.disp};
   state.annotations.push(a);refreshPage(p.id);updateMeta();
   const el=pageEls[p.id].alayer.querySelector(`[data-id="${a.id}"]`);if(el)startEditing(el,a,ev);
 }
@@ -925,9 +932,9 @@ function showFmtBar(el,a){
 
   // --- gaya (paling depan, selalu terlihat) ---
   const bB=document.createElement('button');bB.className='sb'+(a.bold?' on':'');bB.textContent='B';bB.title='Tebal penuh';
-  pd(bB,()=>{snapOnce();a.bold=!a.bold;applyFontCss(el,a);sync();});
+  pd(bB,()=>{snapOnce();a.bold=!a.bold;a.dispFamily=null;applyFontCss(el,a);sync();});
   const bI=document.createElement('button');bI.className='si'+(a.italic?' on':'');bI.innerHTML='<span style="font-style:italic">I</span>';bI.title='Miring';
-  pd(bI,()=>{snapOnce();a.italic=!a.italic;applyFontCss(el,a);sync();});
+  pd(bI,()=>{snapOnce();a.italic=!a.italic;a.dispFamily=null;applyFontCss(el,a);sync();});
   bar.append(bB,bI);
 
   // --- ketebalan halus ---
@@ -945,7 +952,7 @@ function showFmtBar(el,a){
   fontOptions().forEach(o=>{
     const b=document.createElement('button');b.className=o.cls||'';b.dataset.k=o.key;b.textContent=o.label;
     if(o.family)b.style.fontFamily=`"${o.family}",sans-serif`;
-    pd(b,()=>{snapOnce();a.font=o.key;applyFontCss(el,a);sync();});bar.appendChild(b);
+    pd(b,()=>{snapOnce();a.font=o.key;a.dispFamily=null;applyFontCss(el,a);sync();});bar.appendChild(b);
   });
   const add=document.createElement('button');add.className='addf';add.innerHTML='+';add.title='Muat font (.ttf/.otf)';
   pd(add,()=>$('#fontInput').click());bar.appendChild(add);
@@ -1083,7 +1090,7 @@ function renderInspector(){
     r.oninput=()=>{v.textContent=r.value+unit;fn(+r.value);};row.append(r,v);f.appendChild(row);return f;};
   const cf=(lab,cur,colors,fn)=>{const f=document.createElement('div');f.className='field';
     f.innerHTML=`<label>${lab}</label>`;f.appendChild(sw(colors,cur,fn));return f;};
-  const annoSet=a=>patch=>{snapshot();Object.assign(a,patch);refreshPage(a.pageId);renderInspector();};
+  const annoSet=a=>patch=>{snapshot();if('font'in patch||'bold'in patch||'italic'in patch)a.dispFamily=null;Object.assign(a,patch);refreshPage(a.pageId);renderInspector();};
 
   if(sel&&(sel.type==='edit'||sel.type==='text')){
     title.textContent=sel.type==='edit'?'Teks PDF disunting':'Teks terpilih';
