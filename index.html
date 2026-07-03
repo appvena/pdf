@@ -107,17 +107,20 @@
     background-image:radial-gradient(circle at 1px 1px, rgba(255,255,255,.04) 1px, transparent 0);
     background-size:24px 24px;
   }
-  .doc{min-height:100%;display:flex;flex-direction:column;align-items:center;gap:56px;padding:56px 30px 120px}
+  /* FIX: width:max-content + min-width:100% → saat zoom besar, halaman bisa
+     di-scroll sampai tepi kiri & kanan (flex center biasa memotong sisi kiri) */
+  .doc{
+    width:max-content;min-width:100%;
+    display:flex;flex-direction:column;align-items:center;gap:56px;padding:56px 30px 120px;
+  }
 
   .page-slot{position:relative;display:flex;align-items:center;justify-content:center;flex:none}
   .page{
     position:absolute;background:var(--paper);
     box-shadow:0 1px 2px rgba(0,0,0,.4),0 12px 28px rgba(0,0,0,.45),0 40px 90px rgba(0,0,0,.5);
     border-radius:2px;overflow:hidden;
-    /* PENTING utk HP: izinkan scroll 1 jari; cubit 2 jari ditangani sendiri */
     touch-action:pan-x pan-y;
   }
-  /* saat menggambar, jari tidak boleh men-scroll */
   .tool-pen .page,.tool-highlight .page{touch-action:none}
   .anno,.rz{touch-action:none}
 
@@ -187,6 +190,28 @@
   input[type=range]{width:100%;accent-color:var(--gold);cursor:pointer}
   .rrow{display:flex;align-items:center;gap:10px}
   .rval{font-family:var(--fm);font-size:12px;min-width:44px;text-align:right;color:var(--gold-2)}
+
+  /* pemilih font & gaya */
+  .seg{display:flex;gap:7px}
+  .segbtn{
+    flex:1;height:36px;border:1px solid var(--line-2);border-radius:9px;font-size:13px;
+    background:rgba(255,255,255,.02);transition:.13s;display:grid;place-items:center;
+  }
+  .segbtn:hover{background:rgba(255,255,255,.07)}
+  .segbtn.on{background:var(--gold-dim);border-color:var(--gold);color:var(--gold-2)}
+  .segbtn.f-helv{font-family:Helvetica,Arial,sans-serif}
+  .segbtn.f-times{font-family:"Times New Roman",Times,serif}
+  .segbtn.f-courier{font-family:"Courier New",Courier,monospace}
+  .stylerow{display:flex;gap:7px}
+  .stybtn{
+    width:44px;height:36px;border:1px solid var(--line-2);border-radius:9px;font-size:14px;
+    background:rgba(255,255,255,.02);transition:.13s;
+  }
+  .stybtn:hover{background:rgba(255,255,255,.07)}
+  .stybtn.on{background:var(--gold-dim);border-color:var(--gold);color:var(--gold-2)}
+  .stybtn.b{font-weight:800}
+  .stybtn.i{font-style:italic;font-family:Georgia,serif}
+
   .meta{font-size:13px;line-height:1.8;color:var(--muted)}
   .meta b{color:var(--text);font-weight:600}
   .meta .fname{display:block;color:var(--text);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:4px}
@@ -357,8 +382,7 @@
     <div class="isec">
       <div class="ititle">Petunjuk</div>
       <p class="hint">
-        <b>Ketuk teks PDF</b> → langsung sunting di tempat.<br>
-        <b>Alat Teks</b> → ketuk area kosong untuk teks baru.<br>
+        <b>Ketuk teks PDF</b> → langsung sunting; font, tebal &amp; miring ada di panel ini saat teks terpilih.<br>
         <b>Cubit 2 jari</b> → zoom · geser 1 jari → scroll.<br>
         <span class="kbd">Del</span> hapus · <span class="kbd">Esc</span> selesai · <span class="kbd">Ctrl+Z</span> urungkan · <span class="kbd">Ctrl+S</span> ekspor.
       </p>
@@ -380,15 +404,15 @@
 
 <script>
 /* ================================================================
-   Inkline v4 — © Darkness 2026
-   Perbaikan terarah untuk HP:
-   1. Semua aksi edit teks (native, anno, tambah teks) kini dipicu di
-      event CLICK, bukan pointerdown. Di HP, fokus + keyboard hanya
-      sah setelah jari diangkat — inilah sebab kotak teks langsung
-      hilang sebelumnya. pointerdown kini hanya untuk seret/gambar.
-   2. touch-action:none dihapus dari halaman → scroll 1 jari jalan.
-      Cubit 2 jari = zoom (implementasi sendiri, pratinjau langsung).
-   3. Alat pena/stabilo tetap touch-action:none agar bisa menggambar.
+   Inkline v5 — © Darkness 2026
+   Baru di v5:
+   1. Pilihan font (Helvetica / Times / Courier) + Tebal (B) & Miring (I)
+      untuk teks baru maupun teks PDF yang disunting — panel kanan.
+   2. Zoom berjangkar: titik tengah layar (atau posisi kursor/cubit)
+      tetap di tempat; render ulang di belakang layar lalu ditukar
+      sekali jadi — tidak ada kedipan putih.
+   3. Halaman yang lebih lebar dari layar kini bisa di-scroll sampai
+      tepi kiri & kanan (perbaikan .doc width:max-content).
    ================================================================ */
 pdfjsLib.GlobalWorkerOptions.workerSrc =
   'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -397,6 +421,14 @@ const PALETTE=['#111827','#4C6EF5','#C0392B','#1E8449','#B7791F','#FFFFFF'];
 const HL=['#FFD43B','#63E6BE','#FF8787','#74C0FC','#B197FC'];
 const A4={w:595.28,h:841.89};
 const DPR=Math.min(2,window.devicePixelRatio||1);
+
+/* ---- font ---- */
+const FONT_CSS={
+  helv:'Helvetica,Arial,sans-serif',
+  times:'"Times New Roman",Times,serif',
+  courier:'"Courier New",Courier,monospace'
+};
+const FONT_LABEL={helv:'Sans',times:'Serif',courier:'Mono'};
 
 let uid=1; const nid=()=>'x'+(uid++);
 const $=s=>document.querySelector(s);
@@ -407,10 +439,11 @@ const state={
   pages:[], textItems:new Map(), annotations:[],
   scale:1.2, tool:'select', selected:null,
   color:'#111827', penW:2.5, hlColor:'#FFD43B', hlW:14, fontSize:16,
+  font:'helv', bold:false, italic:false,
   pendingImage:null, history:[], textCount:0,
 };
 const pageEls={};
-let suppressClick=false;   // di-set true setelah drag/resize/coret agar click tidak memicu edit
+let suppressClick=false;
 
 /* ---------- util ---------- */
 const hex2rgb=h=>{h=h.replace('#','');return{r:parseInt(h.slice(0,2),16)/255,g:parseInt(h.slice(2,4),16)/255,b:parseInt(h.slice(4,6),16)/255};};
@@ -482,16 +515,25 @@ async function loadPDF(buf,name){
   }catch(e){console.error(e);hideToast();toast('Gagal membaca PDF. Pastikan file valid & tidak terkunci.');}
 }
 
-/* ---------- render dokumen penuh ---------- */
+/* ---------- render dokumen: bangun di fragment, tukar sekali (anti kedip) ---------- */
+let renderJob=0;
 async function renderDocument(){
-  const sc=workspace.scrollTop;
-  doc.innerHTML=''; for(const k in pageEls)delete pageEls[k];
-  for(const p of state.pages) doc.appendChild(await buildPage(p));
-  workspace.scrollTop=sc;
+  const job=++renderJob;
+  const frag=document.createDocumentFragment();
+  const fresh={};
+  for(const p of state.pages){
+    const slot=await buildPage(p,fresh);
+    if(job!==renderJob)return;               // ada render lebih baru → batalkan
+    frag.appendChild(slot);
+  }
+  if(job!==renderJob)return;
+  for(const k in pageEls)delete pageEls[k];
+  Object.assign(pageEls,fresh);
+  doc.replaceChildren(frag);                 // tukar sekali → tanpa layar kosong
   $('#zoomVal').textContent=Math.round(state.scale*100)+'%';
 }
 
-async function buildPage(p){
+async function buildPage(p,store){
   const w=p.wpt*state.scale,h=p.hpt*state.scale;
   const rot=((p.rotation%360)+360)%360, swap=(rot===90||rot===270);
 
@@ -529,9 +571,10 @@ async function buildPage(p){
 
   slot.appendChild(page);
   slot.appendChild(buildHead(p));
-  pageEls[p.id]={slot,page,base,dcv,tlayer,alayer};
+  const els={slot,page,base,dcv,tlayer,alayer};
+  store[p.id]=els;
 
-  refreshPage(p.id);
+  paintPage(p,els);
   attachEvents(page,p,dcv);
   return slot;
 }
@@ -539,6 +582,9 @@ async function buildPage(p){
 /* ---------- refresh ringan ---------- */
 function refreshPage(pid){
   const p=pageById(pid),els=pageEls[pid];if(!p||!els)return;
+  paintPage(p,els);
+}
+function paintPage(p,els){
   drawOverlay(els.dcv,p);
   buildTextLayer(els.tlayer,p);
   buildAnnoLayer(els.alayer,p);
@@ -583,6 +629,12 @@ function buildTextLayer(layer,p){
   });
 }
 
+function applyFontCss(el,a){
+  el.style.fontFamily=FONT_CSS[a.font||'helv'];
+  el.style.fontWeight=a.bold?'700':'400';
+  el.style.fontStyle=a.italic?'italic':'normal';
+}
+
 function buildAnnoLayer(layer,p){
   layer.innerHTML='';
   annosOf(p.id).forEach(a=>{
@@ -592,13 +644,13 @@ function buildAnnoLayer(layer,p){
     if(a.id===state.selected)el.classList.add('selected');
     if(a.type==='text'){
       el.style.left=(a.x*state.scale)+'px';el.style.top=(a.y*state.scale)+'px';
-      el.style.fontFamily='Helvetica,Arial,sans-serif';
+      applyFontCss(el,a);
       el.style.fontSize=(a.size*state.scale)+'px';el.style.color=a.color;
       el.innerText=a.text;
     }else if(a.type==='edit'){
       el.style.left=(a.x*state.scale)+'px';
       el.style.top=((a.bl-a.size*0.86)*state.scale)+'px';
-      el.style.fontFamily='Helvetica,Arial,sans-serif';
+      applyFontCss(el,a);
       el.style.fontSize=(a.size*state.scale)+'px';el.style.color=a.color;
       el.style.background=a.cover||'#fff';
       el.style.minWidth=(a.w*state.scale)+'px';
@@ -655,18 +707,11 @@ function toPt(page,ev){
   return{px,py,x:px/state.scale,y:py/state.scale};
 }
 
-/* ================================================================
-   INTERAKSI
-   pointerdown → HANYA seret objek, resize, menggambar, hapus, taruh
-                 gambar. TIDAK menciptakan/memfokus editor.
-   click       → semua penyuntingan teks (aman untuk keyboard HP).
-   ================================================================ */
+/* ================= INTERAKSI ================= */
 function attachEvents(page,p,dcv){
-
-  /* --- pointerdown: aksi kontinu --- */
   page.addEventListener('pointerdown',e=>{
     if(e.target.isContentEditable)return;
-    if(pinch.active)return;                          // 2 jari = zoom, abaikan
+    if(pinch.active)return;
 
     const annoEl=e.target.closest('.anno');
     const handle=e.target.classList.contains('rz');
@@ -677,7 +722,7 @@ function attachEvents(page,p,dcv){
         const a=state.annotations.find(x=>x.id===annoEl.dataset.id);
         if(a&&(a.type==='text'||a.type==='image'))startDrag(e,annoEl,a,page);
       }
-      return;                                        // edit ditangani di click
+      return;
     }
     if(state.tool==='erase'){
       if(annoEl){removeAnno(annoEl.dataset.id);suppressClick=true;return;}
@@ -690,7 +735,6 @@ function attachEvents(page,p,dcv){
     if(state.tool==='pen'||state.tool==='highlight'){startStroke(e,page,p,dcv);}
   });
 
-  /* --- click: semua penyuntingan teks --- */
   page.addEventListener('click',e=>{
     if(suppressClick){suppressClick=false;return;}
     if(e.target.isContentEditable)return;
@@ -717,7 +761,6 @@ function attachEvents(page,p,dcv){
   },{passive:true});
 }
 
-/* --- seret objek --- */
 function startDrag(e,el,a,page){
   if(e.pointerType==='mouse')e.preventDefault();
   const start=toPt(page,e);const ox=a.x,oy=a.y;
@@ -785,7 +828,8 @@ function editNative(p,idx,ev){
   snapshot();
   const a={id:nid(),pageId:p.id,type:'edit',item:idx,orig:it.str,
     x:it.x,top:it.top,bl:it.bl,w:it.w,h:it.h,size:it.size,text:it.str,
-    color:'#111827',cover:sampleCover(p,it)};
+    color:'#111827',cover:sampleCover(p,it),
+    font:'helv',bold:false,italic:false};
   state.annotations.push(a);
   refreshPage(p.id);updateMeta();
   const el=pageEls[p.id].alayer.querySelector(`[data-id="${a.id}"]`);
@@ -795,14 +839,15 @@ function editNative(p,idx,ev){
 /* ---------- teks baru ---------- */
 function addTextAt(p,x,y,ev){
   snapshot();
-  const a={id:nid(),pageId:p.id,type:'text',x,y,text:'',size:state.fontSize,color:state.color};
+  const a={id:nid(),pageId:p.id,type:'text',x,y,text:'',size:state.fontSize,color:state.color,
+    font:state.font,bold:state.bold,italic:state.italic};
   state.annotations.push(a);
   refreshPage(p.id);updateMeta();
   const el=pageEls[p.id].alayer.querySelector(`[data-id="${a.id}"]`);
   if(el)startEditing(el,a,null);
 }
 
-/* ---------- mesin edit (dipanggil dari CLICK → aman utk HP) ---------- */
+/* ---------- mesin edit ---------- */
 function startEditing(el,a,ev){
   if(el.isContentEditable)return;
   selectAnno(a.id);
@@ -830,7 +875,7 @@ function startEditing(el,a,ev){
     el.removeAttribute('contenteditable');
     a.text=el.innerText.replace(/\n$/,'');
     if(a.type==='text'&&!a.text.trim()){quietRemove(a.id);return;}
-    if(a.type==='edit'&&a.text===a.orig){quietRemove(a.id);return;}
+    if(a.type==='edit'&&a.text===a.orig&&a.font==='helv'&&!a.bold&&!a.italic){quietRemove(a.id);return;}
     refreshPage(a.pageId);updateMeta();renderInspector();
   };
   el.addEventListener('blur',finish,{once:true});
@@ -902,6 +947,31 @@ function setTool(t){
   renderInspector();
 }
 
+/* kontrol font & gaya untuk inspector */
+function fontField(get,set){
+  const f=document.createElement('div');f.className='field';
+  f.innerHTML='<label>Font</label>';
+  const seg=document.createElement('div');seg.className='seg';
+  ['helv','times','courier'].forEach(k=>{
+    const b=document.createElement('button');
+    b.className='segbtn f-'+k+(get().font===k?' on':'');
+    b.textContent=FONT_LABEL[k];
+    b.onclick=()=>{set({font:k});};
+    seg.appendChild(b);
+  });
+  f.appendChild(seg);return f;
+}
+function styleField(get,set){
+  const f=document.createElement('div');f.className='field';
+  f.innerHTML='<label>Gaya</label>';
+  const row=document.createElement('div');row.className='stylerow';
+  const bb=document.createElement('button');bb.className='stybtn b'+(get().bold?' on':'');bb.textContent='B';bb.title='Tebal';
+  bb.onclick=()=>set({bold:!get().bold});
+  const bi=document.createElement('button');bi.className='stybtn i'+(get().italic?' on':'');bi.textContent='I';bi.title='Miring';
+  bi.onclick=()=>set({italic:!get().italic});
+  row.append(bb,bi);f.appendChild(row);return f;
+}
+
 function renderInspector(){
   const title=$('#propTitle'),body=$('#propBody');body.innerHTML='';
   const sel=state.annotations.find(a=>a.id===state.selected);
@@ -918,17 +988,19 @@ function renderInspector(){
   const cf=(lab,cur,colors,fn)=>{const f=document.createElement('div');f.className='field';
     f.innerHTML=`<label>${lab}</label>`;f.appendChild(sw(colors,cur,fn));return f;};
 
-  if(sel&&sel.type==='edit'){
-    title.textContent='Teks PDF disunting';
-    body.appendChild(cf('Warna teks',sel.color,PALETTE,c=>{snapshot();sel.color=c;refreshPage(sel.pageId);renderInspector();}));
+  /* setter utk anno terpilih: snapshot + refresh + rerender panel */
+  const annoSet=a=>patch=>{snapshot();Object.assign(a,patch);refreshPage(a.pageId);renderInspector();};
+
+  if(sel&&(sel.type==='edit'||sel.type==='text')){
+    title.textContent=sel.type==='edit'?'Teks PDF disunting':'Teks terpilih';
+    body.appendChild(fontField(()=>sel,annoSet(sel)));
+    body.appendChild(styleField(()=>sel,annoSet(sel)));
+    body.appendChild(cf('Warna teks',sel.color,PALETTE,c=>annoSet(sel)({color:c})));
     body.appendChild(rng('Ukuran font',Math.round(sel.size),6,72,1,' pt',v=>{sel.size=v;refreshPage(sel.pageId);}));
-    const b=document.createElement('button');b.className='mini';b.textContent='Pulihkan teks asli';
-    b.onclick=()=>removeAnno(sel.id);body.appendChild(b);return;
-  }
-  if(sel&&sel.type==='text'){
-    title.textContent='Teks terpilih';
-    body.appendChild(cf('Warna',sel.color,PALETTE,c=>{snapshot();sel.color=c;refreshPage(sel.pageId);renderInspector();}));
-    body.appendChild(rng('Ukuran font',sel.size,8,72,1,' pt',v=>{sel.size=v;refreshPage(sel.pageId);}));
+    if(sel.type==='edit'){
+      const b=document.createElement('button');b.className='mini';b.textContent='Pulihkan teks asli';
+      b.onclick=()=>removeAnno(sel.id);body.appendChild(b);
+    }
     return;
   }
   if(sel&&sel.type==='image'){
@@ -940,13 +1012,12 @@ function renderInspector(){
   const heads={select:'Pilih',text:'Alat Teks',pen:'Alat Pena',highlight:'Alat Stabilo',image:'Alat Gambar',erase:'Hapus Objek'};
   title.textContent=heads[state.tool];
   if(state.tool==='select'){
-    body.innerHTML='<p class="hint">Ketuk <b>teks PDF</b> untuk langsung menyuntingnya. Ketuk objek untuk memilih & mengedit, seret untuk memindah.</p>';
+    body.innerHTML='<p class="hint">Ketuk <b>teks PDF</b> untuk langsung menyuntingnya — lalu atur font, tebal/miring, warna &amp; ukuran di sini. Seret objek untuk memindah.</p>';
   }else if(state.tool==='text'){
+    body.appendChild(fontField(()=>state,p=>{Object.assign(state,p);renderInspector();}));
+    body.appendChild(styleField(()=>state,p=>{Object.assign(state,p);renderInspector();}));
     body.appendChild(cf('Warna teks',state.color,PALETTE,c=>{state.color=c;renderInspector();}));
     body.appendChild(rng('Ukuran font',state.fontSize,8,72,1,' pt',v=>state.fontSize=v));
-    const p=document.createElement('p');p.className='hint';p.style.marginTop='12px';
-    p.innerHTML='Ketuk <b>teks PDF</b> untuk menyunting, atau ketuk <b>area kosong</b> untuk teks baru.';
-    body.appendChild(p);
   }else if(state.tool==='pen'){
     body.appendChild(cf('Warna tinta',state.color,PALETTE,c=>{state.color=c;renderInspector();}));
     body.appendChild(rng('Ketebalan',state.penW,1,12,0.5,' pt',v=>state.penW=v));
@@ -972,34 +1043,55 @@ function updateMeta(){
   $('#mAnno').textContent=state.annotations.length;
 }
 
-/* ---------- zoom ---------- */
-let zoomT=null;
-function setZoom(s){
-  state.scale=Math.min(4,Math.max(0.3,s));
-  $('#zoomVal').textContent=Math.round(state.scale*100)+'%';
-  clearTimeout(zoomT);zoomT=setTimeout(()=>renderDocument(),120);
+/* ================= ZOOM BERJANGKAR (tanpa kedip) =================
+   Titik jangkar (tengah layar / posisi kursor / titik cubit) tetap
+   di tempat. Render baru dibangun di belakang layar lalu ditukar. */
+let zoomT=null,zoomJob=null;
+function zoomTo(target,clientX,clientY){
+  target=Math.min(4,Math.max(0.3,target));
+  const rect=workspace.getBoundingClientRect();
+  const vx=(clientX!=null?clientX-rect.left:rect.width/2);
+  const vy=(clientY!=null?clientY-rect.top :rect.height/2);
+  if(!zoomJob)zoomJob={from:state.scale,sl:workspace.scrollLeft,st:workspace.scrollTop,vx,vy};
+  zoomJob.target=target;
+  $('#zoomVal').textContent=Math.round(target*100)+'%';
+  clearTimeout(zoomT);
+  zoomT=setTimeout(async()=>{
+    const j=zoomJob;zoomJob=null;
+    if(Math.abs(j.target-state.scale)<0.001)return;
+    state.scale=j.target;
+    await renderDocument();
+    const r=j.target/j.from;
+    workspace.scrollLeft=(j.sl+j.vx)*r-j.vx;
+    workspace.scrollTop =(j.st+j.vy)*r-j.vy;
+  },140);
 }
+const curZoom=()=>zoomJob?zoomJob.target:state.scale;
+
 function fitWidth(rerender=true){
   if(!state.pages.length)return;
+  zoomJob=null;clearTimeout(zoomT);
   const p=state.pages[0],swap=(p.rotation%180!==0);
   const wpt=swap?p.hpt:p.wpt;
   const pad=window.innerWidth<=760?28:70;
   state.scale=Math.min(4,Math.max(0.3,(workspace.clientWidth-pad)/wpt));
   $('#zoomVal').textContent=Math.round(state.scale*100)+'%';
-  if(rerender)renderDocument();
+  if(rerender)renderDocument().then(()=>{workspace.scrollLeft=0;});
 }
 
-/* ---------- CUBIT ZOOM 2 JARI (implementasi sendiri) ---------- */
-const pinch={active:false,d0:0,s0:1,live:1,st:0,cy:0};
+/* ---------- cubit 2 jari ---------- */
+const pinch={active:false,d0:0,s0:1,live:1,st:0,sl:0,cx:0,cy:0};
 const tdist=t=>Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY);
 workspace.addEventListener('touchstart',e=>{
   if(e.touches.length===2&&state.pages.length){
     if(document.activeElement?.isContentEditable)document.activeElement.blur();
+    const rect=workspace.getBoundingClientRect();
     pinch.active=true;
     pinch.d0=tdist(e.touches);pinch.s0=state.scale;pinch.live=state.scale;
-    pinch.st=workspace.scrollTop;
-    pinch.cy=((e.touches[0].clientY+e.touches[1].clientY)/2)-workspace.getBoundingClientRect().top;
-    doc.style.transformOrigin='50% 0';
+    pinch.st=workspace.scrollTop;pinch.sl=workspace.scrollLeft;
+    pinch.cx=((e.touches[0].clientX+e.touches[1].clientX)/2)-rect.left;
+    pinch.cy=((e.touches[0].clientY+e.touches[1].clientY)/2)-rect.top;
+    doc.style.transformOrigin=`${pinch.sl+pinch.cx}px ${pinch.st+pinch.cy}px`;
   }
 },{passive:true});
 workspace.addEventListener('touchmove',e=>{
@@ -1015,21 +1107,25 @@ async function endPinch(){
   if(!pinch.active)return;
   pinch.active=false;
   const s=pinch.live;
-  doc.style.transform='';
+  doc.style.transform='';doc.style.transformOrigin='';
   if(Math.abs(s-state.scale)>0.01){
     const ratio=s/state.scale;
     state.scale=s;
     await renderDocument();
-    workspace.scrollTop=(pinch.st+pinch.cy)*ratio-pinch.cy;
+    workspace.scrollLeft=(pinch.sl+pinch.cx)*ratio-pinch.cx;
+    workspace.scrollTop =(pinch.st+pinch.cy)*ratio-pinch.cy;
   }
   $('#zoomVal').textContent=Math.round(state.scale*100)+'%';
 }
 workspace.addEventListener('touchend',e=>{if(e.touches.length<2)endPinch();},{passive:true});
 workspace.addEventListener('touchcancel',()=>endPinch(),{passive:true});
 
-/* Ctrl + roda mouse = zoom (desktop) */
+/* Ctrl + roda mouse = zoom pada posisi kursor */
 workspace.addEventListener('wheel',e=>{
-  if(e.ctrlKey&&state.pages.length){e.preventDefault();setZoom(state.scale*(e.deltaY<0?1.08:0.92));}
+  if(e.ctrlKey&&state.pages.length){
+    e.preventDefault();
+    zoomTo(curZoom()*(e.deltaY<0?1.1:0.9),e.clientX,e.clientY);
+  }
 },{passive:false});
 
 /* ---------- EKSPOR ---------- */
@@ -1041,8 +1137,22 @@ async function exportPDF(){
     const{PDFDocument,rgb,degrees,StandardFonts}=PDFLib;
     const src=await PDFDocument.load(state.originalBytes,{ignoreEncryption:true});
     const out=await PDFDocument.create();
-    const font=await out.embedFont(StandardFonts.Helvetica);
-    const imgCache={};
+    const imgCache={},fontCache={};
+
+    const FONT_STD={
+      helv:['Helvetica','HelveticaBold','HelveticaOblique','HelveticaBoldOblique'],
+      times:['TimesRoman','TimesRomanBold','TimesRomanItalic','TimesRomanBoldItalic'],
+      courier:['Courier','CourierBold','CourierOblique','CourierBoldOblique']
+    };
+    async function getFont(a){
+      const fam=a.font||'helv';
+      const key=fam+'-'+(a.bold?1:0)+(a.italic?1:0);
+      if(!fontCache[key]){
+        const idx=(a.bold?1:0)+(a.italic?2:0);
+        fontCache[key]=await out.embedFont(StandardFonts[FONT_STD[fam][idx]]);
+      }
+      return fontCache[key];
+    }
 
     for(const ps of state.pages){
       let page;
@@ -1053,17 +1163,19 @@ async function exportPDF(){
       for(const a of annosOf(ps.id)){
         try{
           if(a.type==='edit'){
+            const fnt=await getFont(a);
             const txt=latin1(a.text);
-            const tw=font.widthOfTextAtSize(txt||' ',a.size);
+            const tw=fnt.widthOfTextAtSize(txt||' ',a.size);
             const cw=Math.max(a.w,tw)+4;
             const cc=hex2rgb(a.cover||'#ffffff');
             page.drawRectangle({x:a.x-2,y:H-a.top-a.h-2,width:cw,height:a.h+4,color:rgb(cc.r,cc.g,cc.b)});
             const tc=hex2rgb(a.color);
-            page.drawText(txt,{x:a.x,y:H-a.bl,size:a.size,font,color:rgb(tc.r,tc.g,tc.b)});
+            page.drawText(txt,{x:a.x,y:H-a.bl,size:a.size,font:fnt,color:rgb(tc.r,tc.g,tc.b)});
           }else if(a.type==='text'){
+            const fnt=await getFont(a);
             const c=hex2rgb(a.color);
             latin1(a.text).split('\n').forEach((ln,i)=>{
-              page.drawText(ln,{x:a.x,y:H-a.y-a.size*0.82-(i*a.size*1.25),size:a.size,font,color:rgb(c.r,c.g,c.b)});
+              page.drawText(ln,{x:a.x,y:H-a.y-a.size*0.82-(i*a.size*1.25),size:a.size,font:fnt,color:rgb(c.r,c.g,c.b)});
             });
           }else if(a.type==='pen'||a.type==='highlight'){
             if(!a.points.length)continue;
@@ -1127,8 +1239,8 @@ $('#addBlank').onclick=async()=>{snapshot();
   state.pages.push({id:nid(),originalIndex:-1,rotation:0,wpt:A4.w,hpt:A4.h});
   await renderDocument();updateMeta();
   workspace.scrollTo({top:workspace.scrollHeight,behavior:'smooth'});};
-$('#zoomIn').onclick=()=>setZoom(state.scale+0.15);
-$('#zoomOut').onclick=()=>setZoom(state.scale-0.15);
+$('#zoomIn').onclick=()=>zoomTo(curZoom()+0.15);
+$('#zoomOut').onclick=()=>zoomTo(curZoom()-0.15);
 $('#fitBtn').onclick=()=>fitWidth();
 $('#inspToggle').onclick=()=>$('#inspector').classList.toggle('open');
 document.querySelectorAll('.tool').forEach(b=>b.onclick=()=>{setTool(b.dataset.tool);
