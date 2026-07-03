@@ -2,7 +2,8 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<!-- v7: native pinch-zoom diizinkan sebagai cadangan (tanpa user-scalable=no) -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Inkline — Editor PDF Native</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -22,10 +23,12 @@
   }
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
   html,body{height:100%}
+  html{overflow-x:hidden}
   body{
     font-family:var(--fb);color:var(--text);overflow:hidden;
     background:radial-gradient(1200px 800px at 70% -10%, #171a24 0%, var(--bg1) 45%, var(--bg0) 100%);
-    display:grid;grid-template-rows:60px 1fr 32px;height:100dvh;
+    display:grid;grid-template-rows:56px 1fr 40px;grid-template-columns:minmax(0,1fr);
+    height:100dvh;width:100vw;max-width:100vw;
     -webkit-font-smoothing:antialiased;
   }
   button{font-family:inherit;color:inherit;cursor:pointer;border:none;background:none}
@@ -35,26 +38,26 @@
   ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:8px;border:2px solid transparent;background-clip:content-box}
   ::-webkit-scrollbar-track{background:transparent}
 
-  /* ============ TOP BAR ============ */
+  /* ============ TOP BAR (dibuat sependek mungkin) ============ */
   .topbar{
-    grid-row:1;display:flex;align-items:center;gap:14px;padding:0 18px;
+    grid-row:1;display:flex;align-items:center;gap:10px;padding:0 14px;
     background:var(--glass);backdrop-filter:blur(14px);position:relative;z-index:60;
+    min-width:0;overflow:hidden;
   }
   .topbar::after{
     content:"";position:absolute;left:0;right:0;bottom:0;height:1px;
     background:linear-gradient(90deg,transparent 0%,rgba(201,166,107,.55) 30%,rgba(201,166,107,.55) 70%,transparent 100%);
     opacity:.6;
   }
-  .brand{display:flex;align-items:baseline;gap:9px;user-select:none;margin-right:4px}
-  .brand .mark{font-family:var(--fd);font-weight:600;font-size:22px;letter-spacing:.01em}
+  .brand{display:flex;align-items:baseline;gap:8px;user-select:none;flex:none;min-width:0}
+  .brand .mark{font-family:var(--fd);font-weight:600;font-size:21px;letter-spacing:.01em;white-space:nowrap}
   .brand .mark b{color:var(--gold);font-weight:600}
-  .brand .sub{font-size:10px;color:var(--muted);letter-spacing:.22em;text-transform:uppercase}
-  .spacer{flex:1}
-  .tb-group{display:flex;align-items:center;gap:6px}
-  .tb-div{width:1px;height:24px;background:var(--line-2);margin:0 4px}
+  .brand .sub{font-size:10px;color:var(--muted);letter-spacing:.2em;text-transform:uppercase;white-space:nowrap}
+  .spacer{flex:1;min-width:0}
+  .tb-group{display:flex;align-items:center;gap:6px;flex:none}
 
   .btn{
-    display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 15px;border-radius:10px;
+    display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 14px;border-radius:10px;
     font-size:13px;font-weight:500;border:1px solid var(--line-2);
     background:rgba(255,255,255,.03);transition:.15s;white-space:nowrap;
   }
@@ -66,15 +69,14 @@
   }
   .btn.gold:hover{filter:brightness(1.06)}
   .btn:disabled{opacity:.35;cursor:not-allowed;pointer-events:none}
-  .ibtn{width:36px;height:36px;display:grid;place-items:center;border-radius:10px;transition:.15s;color:var(--muted)}
+  .ibtn{width:36px;height:36px;display:grid;place-items:center;border-radius:10px;transition:.15s;color:var(--muted);flex:none}
   .ibtn:hover{background:rgba(255,255,255,.07);color:var(--text)}
   .ibtn:disabled{opacity:.3;pointer-events:none}
   .ibtn svg{width:17px;height:17px}
-  .zoomv{font-family:var(--fm);font-size:12px;color:var(--muted);min-width:46px;text-align:center}
   #inspToggle{display:none}
 
   /* ============ STAGE ============ */
-  .stage{grid-row:2;display:grid;grid-template-columns:78px 1fr 292px;min-height:0}
+  .stage{grid-row:2;display:grid;grid-template-columns:78px minmax(0,1fr) 292px;min-height:0;min-width:0}
 
   /* ---- Tool rail ---- */
   .rail-wrap{display:flex;align-items:center;justify-content:center;pointer-events:none}
@@ -103,12 +105,10 @@
 
   /* ---- Workspace ---- */
   .workspace{
-    position:relative;overflow:auto;overscroll-behavior:contain;
+    position:relative;overflow:auto;overscroll-behavior:contain;min-width:0;
     background-image:radial-gradient(circle at 1px 1px, rgba(255,255,255,.04) 1px, transparent 0);
     background-size:24px 24px;
   }
-  /* FIX: width:max-content + min-width:100% → saat zoom besar, halaman bisa
-     di-scroll sampai tepi kiri & kanan (flex center biasa memotong sisi kiri) */
   .doc{
     width:max-content;min-width:100%;
     display:flex;flex-direction:column;align-items:center;gap:56px;padding:56px 30px 120px;
@@ -191,7 +191,6 @@
   .rrow{display:flex;align-items:center;gap:10px}
   .rval{font-family:var(--fm);font-size:12px;min-width:44px;text-align:right;color:var(--gold-2)}
 
-  /* pemilih font & gaya */
   .seg{display:flex;gap:7px}
   .segbtn{
     flex:1;height:36px;border:1px solid var(--line-2);border-radius:9px;font-size:13px;
@@ -226,29 +225,36 @@
   .kbd{font-family:var(--fm);font-size:10.5px;background:rgba(255,255,255,.08);border:1px solid var(--line-2);padding:1px 6px;border-radius:5px;color:var(--gold-2)}
 
   /* ---- Empty state ---- */
-  .empty{position:absolute;inset:0;display:grid;place-items:center;padding:24px;z-index:5}
+  .empty{position:absolute;inset:0;display:grid;place-items:center;padding:20px;z-index:5}
   .drop{
-    width:min(560px,94%);border:1.5px dashed rgba(201,166,107,.4);border-radius:22px;
-    background:var(--glass);backdrop-filter:blur(10px);padding:60px 44px;text-align:center;transition:.18s;
+    width:min(560px,94%);max-width:100%;border:1.5px dashed rgba(201,166,107,.4);border-radius:22px;
+    background:var(--glass);backdrop-filter:blur(10px);padding:54px 40px;text-align:center;transition:.18s;
     box-shadow:var(--sh-pop);cursor:pointer;
   }
   .drop.over{border-color:var(--gold);background:rgba(201,166,107,.08);transform:scale(1.012)}
-  .drop .ic{width:66px;height:66px;margin:0 auto 22px;color:var(--gold);filter:drop-shadow(0 6px 18px rgba(201,166,107,.35))}
-  .drop h2{font-family:var(--fd);font-size:27px;font-weight:600;letter-spacing:.01em;margin-bottom:12px}
-  .drop p{color:var(--muted);font-size:14px;margin-bottom:26px;line-height:1.7}
+  .drop .ic{width:64px;height:64px;margin:0 auto 20px;color:var(--gold);filter:drop-shadow(0 6px 18px rgba(201,166,107,.35))}
+  .drop h2{font-family:var(--fd);font-size:26px;font-weight:600;letter-spacing:.01em;margin-bottom:12px}
+  .drop p{color:var(--muted);font-size:14px;margin-bottom:24px;line-height:1.7}
 
-  /* ---- Status bar ---- */
+  /* ---- Status bar (kini memuat kontrol zoom) ---- */
   .statusbar{
-    grid-row:3;display:flex;align-items:center;gap:18px;padding:0 18px;
+    grid-row:3;display:flex;align-items:center;gap:14px;padding:0 14px;
     background:var(--glass);border-top:1px solid var(--line);
     font-family:var(--fm);font-size:11px;color:var(--muted);z-index:60;
+    min-width:0;overflow:hidden;
   }
   .sdot{width:6px;height:6px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px var(--ok)}
   .sitem{display:flex;align-items:center;gap:7px;white-space:nowrap}
   .credit{color:var(--gold);opacity:.85;letter-spacing:.06em}
+  .zoombar{display:flex;align-items:center;gap:2px;flex:none}
+  .zoombar button{width:30px;height:26px;display:grid;place-items:center;border-radius:7px;color:var(--muted);transition:.12s}
+  .zoombar button:hover{background:rgba(255,255,255,.08);color:var(--text)}
+  .zoombar button:disabled{opacity:.3;pointer-events:none}
+  .zoombar button svg{width:15px;height:15px}
+  #zoomVal{min-width:42px;text-align:center;color:var(--gold-2)}
 
   .toast{
-    position:fixed;bottom:50px;left:50%;transform:translateX(-50%) translateY(16px);
+    position:fixed;bottom:56px;left:50%;transform:translateX(-50%) translateY(16px);
     background:#05060a;border:1px solid var(--line-2);color:#fff;padding:12px 20px;border-radius:12px;
     font-size:13px;box-shadow:var(--sh-pop);opacity:0;pointer-events:none;transition:.22s;z-index:200;
     display:flex;align-items:center;gap:10px;max-width:90vw;
@@ -259,33 +265,36 @@
 
   /* ============ RESPONSIF ============ */
   @media (max-width:1060px){
-    .stage{grid-template-columns:78px 1fr}
+    .stage{grid-template-columns:78px minmax(0,1fr)}
     #inspToggle{display:grid}
     .inspector{
-      position:fixed;top:60px;right:0;bottom:32px;width:min(320px,88vw);z-index:70;
+      position:fixed;top:56px;right:0;bottom:40px;width:min(320px,88vw);z-index:70;
       transform:translateX(105%);transition:transform .25s cubic-bezier(.2,.8,.2,1);
       border-left:1px solid var(--line-2);box-shadow:-20px 0 60px rgba(0,0,0,.5);
     }
     .inspector.open{transform:translateX(0)}
   }
   @media (max-width:760px){
-    body{grid-template-rows:56px 1fr 30px}
-    .topbar{padding:0 10px;gap:8px}
+    .topbar{padding:0 10px;gap:6px}
+    .brand{gap:6px}
+    .brand .mark{font-size:19px}
     .brand .sub{display:none}
     .btn .lbl{display:none}
-    .btn{padding:0 11px}
-    .tb-div{display:none}
-    .stage{grid-template-columns:1fr}
-    .rail-wrap{position:fixed;left:50%;bottom:44px;transform:translateX(-50%);z-index:65}
-    .rail{flex-direction:row;padding:7px 9px;gap:3px}
-    .tool{width:42px;height:42px}
+    .btn{height:34px;padding:0 11px;border-radius:9px}
+    .ibtn{width:34px;height:34px}
+    .stage{grid-template-columns:minmax(0,1fr)}
+    .rail-wrap{position:fixed;left:50%;bottom:52px;transform:translateX(-50%);z-index:65;width:auto;max-width:96vw}
+    .rail{flex-direction:row;padding:6px 8px;gap:2px;max-width:96vw;overflow-x:auto}
+    .tool{width:40px;height:40px;flex:none}
     .tool[data-tip]::after{display:none}
-    .rail-sep{width:1px;height:24px;margin:0 3px}
-    .doc{padding:44px 12px 150px;gap:48px}
-    .inspector{top:56px;bottom:30px}
+    .rail-sep{width:1px;height:24px;margin:0 3px;flex:none}
+    .doc{padding:40px 10px 160px;gap:44px}
+    .inspector{top:56px;bottom:40px}
     #stCoord,#stTool{display:none}
-    .drop{padding:44px 26px}
-    .drop h2{font-size:22px}
+    .drop{padding:38px 22px}
+    .drop h2{font-size:21px}
+    .drop p{font-size:13px}
+    .drop .ic{width:54px;height:54px;margin-bottom:16px}
     .page-head{opacity:.9}
   }
   @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
@@ -295,29 +304,19 @@
 
 <header class="topbar">
   <div class="brand"><span class="mark">Ink<b>line</b></span><span class="sub">Editor PDF</span></div>
-
+  <div class="spacer"></div>
   <div class="tb-group">
     <button class="btn" id="openBtn">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h6l2 3h8v11a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg>
-      <span class="lbl">Buka PDF</span>
+      <span class="lbl">Buka</span>
     </button>
     <button class="btn gold" id="exportBtn" disabled>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
       <span class="lbl">Ekspor</span>
     </button>
-  </div>
-
-  <div class="spacer"></div>
-
-  <div class="tb-group">
     <button class="ibtn" id="undoBtn" title="Urungkan (Ctrl+Z)" disabled>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-1"/></svg>
     </button>
-    <div class="tb-div"></div>
-    <button class="ibtn" id="zoomOut" title="Perkecil" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg></button>
-    <span class="zoomv" id="zoomVal">100%</span>
-    <button class="ibtn" id="zoomIn" title="Perbesar" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></button>
-    <button class="ibtn" id="fitBtn" title="Paskan lebar" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4"/></svg></button>
     <button class="ibtn" id="inspToggle" title="Panel properti"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h10M4 18h7"/><circle cx="18" cy="12" r="2"/><circle cx="15" cy="18" r="2"/></svg></button>
   </div>
 </header>
@@ -354,8 +353,8 @@
         <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5"/><path d="M4 15v3a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-3"/></svg>
         <h2>Letakkan berkas PDF Anda</h2>
         <p>Seret &amp; jatuhkan, atau ketuk untuk memilih file.<br>
-        Ketuk teks apa pun di dokumen untuk <b style="color:var(--gold-2)">menyuntingnya langsung</b>.<br>
-        Cubit 2 jari untuk zoom. Semua proses lokal — <span class="kbd">tanpa unggah</span>.</p>
+        Ketuk teks apa pun untuk <b style="color:var(--gold-2)">menyuntingnya langsung</b>.<br>
+        Cubit 2 jari untuk zoom. Semua lokal — <span class="kbd">tanpa unggah</span>.</p>
         <button class="btn gold" id="openBtn2">Pilih file PDF</button>
       </div>
     </div>
@@ -374,6 +373,10 @@
         <div>Teks dapat diedit: <b id="mText">—</b></div>
         <div>Anotasi &amp; suntingan: <b id="mAnno">0</b></div>
       </div>
+      <button class="mini" id="fitBtn2" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4"/></svg>
+        Paskan lebar layar
+      </button>
       <button class="mini" id="addBlank" disabled>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3v5h5M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-5z"/><path d="M12 12v5M9.5 14.5h5"/></svg>
         Tambah halaman kosong
@@ -382,9 +385,9 @@
     <div class="isec">
       <div class="ititle">Petunjuk</div>
       <p class="hint">
-        <b>Ketuk teks PDF</b> → langsung sunting; font, tebal &amp; miring ada di panel ini saat teks terpilih.<br>
-        <b>Cubit 2 jari</b> → zoom · geser 1 jari → scroll.<br>
-        <span class="kbd">Del</span> hapus · <span class="kbd">Esc</span> selesai · <span class="kbd">Ctrl+Z</span> urungkan · <span class="kbd">Ctrl+S</span> ekspor.
+        <b>Ketuk teks PDF</b> → langsung sunting; font, tebal &amp; miring muncul di sini saat teks terpilih.<br>
+        <b>Zoom</b>: cubit 2 jari, atau tombol <span class="kbd">− / +</span> di bar bawah.<br>
+        <span class="kbd">Del</span> hapus · <span class="kbd">Esc</span> selesai · <span class="kbd">Ctrl+Z</span> urungkan.
       </p>
     </div>
   </aside>
@@ -394,7 +397,11 @@
   <div class="sitem"><span class="sdot"></span><span id="stStatus">Siap</span></div>
   <div class="sitem" id="stTool">Alat: Pilih</div>
   <div class="spacer" style="flex:1"></div>
-  <div class="sitem" id="stCoord"></div>
+  <div class="zoombar">
+    <button id="zoomOut" title="Perkecil" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg></button>
+    <span id="zoomVal">100%</span>
+    <button id="zoomIn" title="Perbesar" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></button>
+  </div>
   <div class="sitem credit">© Darkness 2026</div>
 </footer>
 
@@ -404,15 +411,15 @@
 
 <script>
 /* ================================================================
-   Inkline v5 — © Darkness 2026
-   Baru di v5:
-   1. Pilihan font (Helvetica / Times / Courier) + Tebal (B) & Miring (I)
-      untuk teks baru maupun teks PDF yang disunting — panel kanan.
-   2. Zoom berjangkar: titik tengah layar (atau posisi kursor/cubit)
-      tetap di tempat; render ulang di belakang layar lalu ditukar
-      sekali jadi — tidak ada kedipan putih.
-   3. Halaman yang lebih lebar dari layar kini bisa di-scroll sampai
-      tepi kiri & kanan (perbaikan .doc width:max-content).
+   Inkline v7 — © Darkness 2026
+   Fokus v7 (anti terpotong & pinch andal di HP):
+   - Bilah atas dibuat sependek mungkin (Buka, Ekspor, Undo, Panel).
+     Kontrol zoom −/%/+ dipindah ke bar bawah yang lapang → bilah atas
+     tak akan pernah melebihi lebar layar, bahkan tanpa media query.
+   - Viewport tidak lagi user-scalable=no → pinch-zoom bawaan browser
+     aktif sebagai cadangan; pinch kustom tetap dipakai di area dokumen.
+   - Semua kontainer dikunci ke lebar layar (minmax(0,1fr), 100vw,
+     overflow-x:hidden).
    ================================================================ */
 pdfjsLib.GlobalWorkerOptions.workerSrc =
   'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -422,12 +429,7 @@ const HL=['#FFD43B','#63E6BE','#FF8787','#74C0FC','#B197FC'];
 const A4={w:595.28,h:841.89};
 const DPR=Math.min(2,window.devicePixelRatio||1);
 
-/* ---- font ---- */
-const FONT_CSS={
-  helv:'Helvetica,Arial,sans-serif',
-  times:'"Times New Roman",Times,serif',
-  courier:'"Courier New",Courier,monospace'
-};
+const FONT_CSS={helv:'Helvetica,Arial,sans-serif',times:'"Times New Roman",Times,serif',courier:'"Courier New",Courier,monospace'};
 const FONT_LABEL={helv:'Sans',times:'Serif',courier:'Mono'};
 
 let uid=1; const nid=()=>'x'+(uid++);
@@ -454,6 +456,7 @@ const annosOf=id=>state.annotations.filter(a=>a.pageId===id);
 const latin1=s=>(s||'').replace(/[\u2018\u2019\u02BC]/g,"'").replace(/[\u201C\u201D]/g,'"')
   .replace(/[\u2013\u2014]/g,'-').replace(/\u2026/g,'...').replace(/\u00A0/g,' ')
   .replace(/[^\x00-\xFF]/g,'');
+const setZoomUI=scale=>{$('#zoomVal').textContent=Math.round(scale*100)+'%';};
 
 function toast(msg,spin=false){
   const t=$('#toast'); t.innerHTML=(spin?'<span class="sp"></span>':'')+msg; t.classList.add('show');
@@ -490,22 +493,19 @@ async function loadPDF(buf,name){
       const pg=await state.pdfjsDoc.getPage(i+1);
       const vp=pg.getViewport({scale:1});
       state.pages.push({id:nid(),originalIndex:i,rotation:0,wpt:vp.width,hpt:vp.height});
-
       const tc=await pg.getTextContent();
       const items=[];
       for(const it of tc.items){
         if(!it.str||!it.str.trim())continue;
         const tr=pdfjsLib.Util.transform(vp.transform,it.transform);
         if(Math.abs(Math.atan2(tr[1],tr[0]))>0.02)continue;
-        const fh=Math.hypot(tr[2],tr[3])||10;
-        const bl=tr[5];
+        const fh=Math.hypot(tr[2],tr[3])||10;const bl=tr[5];
         items.push({str:it.str,x:tr[4],bl,top:bl-fh*0.86,w:it.width||fh*it.str.length*0.5,h:fh,size:fh});
       }
-      state.textItems.set(i,items);
-      state.textCount+=items.length;
+      state.textItems.set(i,items);state.textCount+=items.length;
     }
     empty.style.display='none';
-    ['exportBtn','zoomIn','zoomOut','fitBtn','addBlank'].forEach(id=>$('#'+id).disabled=false);
+    ['exportBtn','zoomIn','zoomOut','fitBtn2','addBlank'].forEach(id=>$('#'+id).disabled=false);
     $('#undoBtn').disabled=true;
     fitWidth(false);
     await renderDocument(); updateMeta();
@@ -515,7 +515,7 @@ async function loadPDF(buf,name){
   }catch(e){console.error(e);hideToast();toast('Gagal membaca PDF. Pastikan file valid & tidak terkunci.');}
 }
 
-/* ---------- render dokumen: bangun di fragment, tukar sekali (anti kedip) ---------- */
+/* ---------- render dokumen ---------- */
 let renderJob=0;
 async function renderDocument(){
   const job=++renderJob;
@@ -523,14 +523,14 @@ async function renderDocument(){
   const fresh={};
   for(const p of state.pages){
     const slot=await buildPage(p,fresh);
-    if(job!==renderJob)return;               // ada render lebih baru → batalkan
+    if(job!==renderJob)return;
     frag.appendChild(slot);
   }
   if(job!==renderJob)return;
   for(const k in pageEls)delete pageEls[k];
   Object.assign(pageEls,fresh);
-  doc.replaceChildren(frag);                 // tukar sekali → tanpa layar kosong
-  $('#zoomVal').textContent=Math.round(state.scale*100)+'%';
+  doc.replaceChildren(frag);
+  setZoomUI(state.scale);
 }
 
 async function buildPage(p,store){
@@ -564,46 +564,33 @@ async function buildPage(p,store){
   dcv.style.pointerEvents='none';
   page.appendChild(dcv);
 
-  const tlayer=document.createElement('div');tlayer.className='text-layer';
-  page.appendChild(tlayer);
-  const alayer=document.createElement('div');alayer.className='anno-layer';
-  page.appendChild(alayer);
+  const tlayer=document.createElement('div');tlayer.className='text-layer';page.appendChild(tlayer);
+  const alayer=document.createElement('div');alayer.className='anno-layer';page.appendChild(alayer);
 
   slot.appendChild(page);
   slot.appendChild(buildHead(p));
   const els={slot,page,base,dcv,tlayer,alayer};
   store[p.id]=els;
-
   paintPage(p,els);
   attachEvents(page,p,dcv);
   return slot;
 }
 
-/* ---------- refresh ringan ---------- */
-function refreshPage(pid){
-  const p=pageById(pid),els=pageEls[pid];if(!p||!els)return;
-  paintPage(p,els);
-}
-function paintPage(p,els){
-  drawOverlay(els.dcv,p);
-  buildTextLayer(els.tlayer,p);
-  buildAnnoLayer(els.alayer,p);
-}
+function refreshPage(pid){const p=pageById(pid),els=pageEls[pid];if(!p||!els)return;paintPage(p,els);}
+function paintPage(p,els){drawOverlay(els.dcv,p);buildTextLayer(els.tlayer,p);buildAnnoLayer(els.alayer,p);}
 
 function drawOverlay(cv,p){
   const ctx=cv.getContext('2d');
   ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,cv.width,cv.height);
   ctx.setTransform(DPR*state.scale,0,0,DPR*state.scale,0,0);
   annosOf(p.id).filter(a=>a.type==='edit').forEach(a=>{
-    ctx.fillStyle=a.cover||'#ffffff';
-    ctx.fillRect(a.x-1.5,a.top-2,a.w+3,a.h+4);
+    ctx.fillStyle=a.cover||'#ffffff';ctx.fillRect(a.x-1.5,a.top-2,a.w+3,a.h+4);
   });
   ctx.lineCap='round';ctx.lineJoin='round';
   annosOf(p.id).filter(a=>a.type==='pen'||a.type==='highlight').forEach(a=>{
     if(!a.points.length)return;
     ctx.save();ctx.globalAlpha=a.type==='highlight'?0.4:1;
-    ctx.strokeStyle=a.color;ctx.lineWidth=a.width;
-    ctx.beginPath();
+    ctx.strokeStyle=a.color;ctx.lineWidth=a.width;ctx.beginPath();
     a.points.forEach((q,i)=>i?ctx.lineTo(q.x,q.y):ctx.moveTo(q.x,q.y));
     if(a.points.length===1)ctx.lineTo(a.points[0].x+.1,a.points[0].y+.1);
     ctx.stroke();ctx.restore();
@@ -619,10 +606,8 @@ function buildTextLayer(layer,p){
     if(edited.has(idx))return;
     const s=document.createElement('div');
     s.className='native-text';s.dataset.idx=idx;
-    s.style.left=(it.x*state.scale)+'px';
-    s.style.top=(it.top*state.scale)+'px';
-    s.style.width=Math.max(4,it.w*state.scale)+'px';
-    s.style.height=(it.h*state.scale)+'px';
+    s.style.left=(it.x*state.scale)+'px';s.style.top=(it.top*state.scale)+'px';
+    s.style.width=Math.max(4,it.w*state.scale)+'px';s.style.height=(it.h*state.scale)+'px';
     s.style.fontSize=(it.size*state.scale)+'px';
     s.title='Ketuk untuk menyunting teks ini';
     layer.appendChild(s);
@@ -639,22 +624,15 @@ function buildAnnoLayer(layer,p){
   layer.innerHTML='';
   annosOf(p.id).forEach(a=>{
     if(a.type==='pen'||a.type==='highlight')return;
-    const el=document.createElement('div');
-    el.className='anno '+a.type;el.dataset.id=a.id;
+    const el=document.createElement('div');el.className='anno '+a.type;el.dataset.id=a.id;
     if(a.id===state.selected)el.classList.add('selected');
     if(a.type==='text'){
       el.style.left=(a.x*state.scale)+'px';el.style.top=(a.y*state.scale)+'px';
-      applyFontCss(el,a);
-      el.style.fontSize=(a.size*state.scale)+'px';el.style.color=a.color;
-      el.innerText=a.text;
+      applyFontCss(el,a);el.style.fontSize=(a.size*state.scale)+'px';el.style.color=a.color;el.innerText=a.text;
     }else if(a.type==='edit'){
-      el.style.left=(a.x*state.scale)+'px';
-      el.style.top=((a.bl-a.size*0.86)*state.scale)+'px';
-      applyFontCss(el,a);
-      el.style.fontSize=(a.size*state.scale)+'px';el.style.color=a.color;
-      el.style.background=a.cover||'#fff';
-      el.style.minWidth=(a.w*state.scale)+'px';
-      el.style.minHeight=(a.h*state.scale)+'px';
+      el.style.left=(a.x*state.scale)+'px';el.style.top=((a.bl-a.size*0.86)*state.scale)+'px';
+      applyFontCss(el,a);el.style.fontSize=(a.size*state.scale)+'px';el.style.color=a.color;
+      el.style.background=a.cover||'#fff';el.style.minWidth=(a.w*state.scale)+'px';el.style.minHeight=(a.h*state.scale)+'px';
       el.innerText=a.text;
     }else if(a.type==='image'){
       el.style.left=(a.x*state.scale)+'px';el.style.top=(a.y*state.scale)+'px';
@@ -707,21 +685,17 @@ function toPt(page,ev){
   return{px,py,x:px/state.scale,y:py/state.scale};
 }
 
-/* ================= INTERAKSI ================= */
+/* ---------- interaksi ---------- */
 function attachEvents(page,p,dcv){
   page.addEventListener('pointerdown',e=>{
     if(e.target.isContentEditable)return;
     if(pinch.active)return;
-
     const annoEl=e.target.closest('.anno');
     const handle=e.target.classList.contains('rz');
-
     if(state.tool==='select'||state.tool==='text'){
       if(handle){startResize(e,annoEl,page);return;}
-      if(annoEl){
-        const a=state.annotations.find(x=>x.id===annoEl.dataset.id);
-        if(a&&(a.type==='text'||a.type==='image'))startDrag(e,annoEl,a,page);
-      }
+      if(annoEl){const a=state.annotations.find(x=>x.id===annoEl.dataset.id);
+        if(a&&(a.type==='text'||a.type==='image'))startDrag(e,annoEl,a,page);}
       return;
     }
     if(state.tool==='erase'){
@@ -739,17 +713,10 @@ function attachEvents(page,p,dcv){
     if(suppressClick){suppressClick=false;return;}
     if(e.target.isContentEditable)return;
     if(state.tool!=='select'&&state.tool!=='text')return;
-
     const annoEl=e.target.closest('.anno');
     const nativeEl=e.target.closest('.native-text');
-
-    if(annoEl){
-      const a=state.annotations.find(x=>x.id===annoEl.dataset.id);
-      if(!a)return;
-      selectAnno(a.id);
-      if(a.type==='text'||a.type==='edit')startEditing(annoEl,a,e);
-      return;
-    }
+    if(annoEl){const a=state.annotations.find(x=>x.id===annoEl.dataset.id);if(!a)return;
+      selectAnno(a.id);if(a.type==='text'||a.type==='edit')startEditing(annoEl,a,e);return;}
     if(nativeEl){editNative(p,+nativeEl.dataset.idx,e);return;}
     if(state.tool==='text'){const c=toPt(page,e);addTextAt(p,c.x,c.y,e);return;}
     selectAnno(null);
@@ -763,51 +730,41 @@ function attachEvents(page,p,dcv){
 
 function startDrag(e,el,a,page){
   if(e.pointerType==='mouse')e.preventDefault();
-  const start=toPt(page,e);const ox=a.x,oy=a.y;
-  let moved=false,snapped=false;
+  const start=toPt(page,e);const ox=a.x,oy=a.y;let moved=false,snapped=false;
   const move=ev=>{
     const c=toPt(page,ev);
     if(!moved&&Math.hypot(c.px-start.px,c.py-start.py)<5)return;
-    if(!snapped){snapshot();snapped=true;}
-    moved=true;suppressClick=true;
+    if(!snapped){snapshot();snapped=true;}moved=true;suppressClick=true;
     a.x=ox+(c.x-start.x);a.y=oy+(c.y-start.y);
     el.style.left=(a.x*state.scale)+'px';el.style.top=(a.y*state.scale)+'px';
   };
   const up=()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);};
   window.addEventListener('pointermove',move);window.addEventListener('pointerup',up);
 }
-
 function startResize(e,el,page){
   e.preventDefault();e.stopPropagation();
-  const a=state.annotations.find(x=>x.id===el.dataset.id);
-  if(!a||a.type!=='image')return;
+  const a=state.annotations.find(x=>x.id===el.dataset.id);if(!a||a.type!=='image')return;
   const start=toPt(page,e);const ow=a.w,ratio=a.h/a.w;snapshot();
-  const move=ev=>{
-    suppressClick=true;
-    const c=toPt(page,ev);
+  const move=ev=>{suppressClick=true;const c=toPt(page,ev);
     a.w=Math.max(20,ow+(c.x-start.x));a.h=a.w*ratio;
-    el.style.width=(a.w*state.scale)+'px';el.style.height=(a.h*state.scale)+'px';
-  };
+    el.style.width=(a.w*state.scale)+'px';el.style.height=(a.h*state.scale)+'px';};
   const up=()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);};
   window.addEventListener('pointermove',move);window.addEventListener('pointerup',up);
 }
 
 /* ---------- kursor di titik klik ---------- */
 function caretAt(el,ev){
-  const sel=getSelection();sel.removeAllRanges();
-  let r=null;
+  const sel=getSelection();sel.removeAllRanges();let r=null;
   try{
     if(ev&&document.caretRangeFromPoint)r=document.caretRangeFromPoint(ev.clientX,ev.clientY);
-    else if(ev&&document.caretPositionFromPoint){
-      const cp=document.caretPositionFromPoint(ev.clientX,ev.clientY);
-      if(cp){r=document.createRange();r.setStart(cp.offsetNode,cp.offset);}
-    }
+    else if(ev&&document.caretPositionFromPoint){const cp=document.caretPositionFromPoint(ev.clientX,ev.clientY);
+      if(cp){r=document.createRange();r.setStart(cp.offsetNode,cp.offset);}}
   }catch(_){}
   if(r&&el.contains(r.startContainer)){r.collapse(true);sel.addRange(r);return;}
   const rr=document.createRange();rr.selectNodeContents(el);rr.collapse(false);sel.addRange(rr);
 }
 
-/* ---------- EDIT TEKS NATIVE ---------- */
+/* ---------- edit teks native ---------- */
 function sampleCover(p,it){
   try{
     const base=pageEls[p.id].base,ctx=base.getContext('2d');
@@ -818,22 +775,15 @@ function sampleCover(p,it){
   }catch(_){return'#ffffff';}
 }
 function editNative(p,idx,ev){
-  const items=state.textItems.get(p.originalIndex)||[];
-  const it=items[idx];if(!it)return;
+  const items=state.textItems.get(p.originalIndex)||[];const it=items[idx];if(!it)return;
   const exist=annosOf(p.id).find(a=>a.type==='edit'&&a.item===idx);
-  if(exist){
-    const el=pageEls[p.id].alayer.querySelector(`[data-id="${exist.id}"]`);
-    if(el)startEditing(el,exist,ev);return;
-  }
+  if(exist){const el=pageEls[p.id].alayer.querySelector(`[data-id="${exist.id}"]`);if(el)startEditing(el,exist,ev);return;}
   snapshot();
   const a={id:nid(),pageId:p.id,type:'edit',item:idx,orig:it.str,
     x:it.x,top:it.top,bl:it.bl,w:it.w,h:it.h,size:it.size,text:it.str,
-    color:'#111827',cover:sampleCover(p,it),
-    font:'helv',bold:false,italic:false};
-  state.annotations.push(a);
-  refreshPage(p.id);updateMeta();
-  const el=pageEls[p.id].alayer.querySelector(`[data-id="${a.id}"]`);
-  if(el)startEditing(el,a,ev);
+    color:'#111827',cover:sampleCover(p,it),font:'helv',bold:false,italic:false};
+  state.annotations.push(a);refreshPage(p.id);updateMeta();
+  const el=pageEls[p.id].alayer.querySelector(`[data-id="${a.id}"]`);if(el)startEditing(el,a,ev);
 }
 
 /* ---------- teks baru ---------- */
@@ -841,38 +791,25 @@ function addTextAt(p,x,y,ev){
   snapshot();
   const a={id:nid(),pageId:p.id,type:'text',x,y,text:'',size:state.fontSize,color:state.color,
     font:state.font,bold:state.bold,italic:state.italic};
-  state.annotations.push(a);
-  refreshPage(p.id);updateMeta();
-  const el=pageEls[p.id].alayer.querySelector(`[data-id="${a.id}"]`);
-  if(el)startEditing(el,a,null);
+  state.annotations.push(a);refreshPage(p.id);updateMeta();
+  const el=pageEls[p.id].alayer.querySelector(`[data-id="${a.id}"]`);if(el)startEditing(el,a,null);
 }
 
 /* ---------- mesin edit ---------- */
 function startEditing(el,a,ev){
   if(el.isContentEditable)return;
   selectAnno(a.id);
-  el.setAttribute('contenteditable','true');
-  el.spellcheck=false;
-  el.focus({preventScroll:false});
-  caretAt(el,ev);
-
-  el.onpaste=pe=>{
-    pe.preventDefault();
+  el.setAttribute('contenteditable','true');el.spellcheck=false;
+  el.focus({preventScroll:false});caretAt(el,ev);
+  el.onpaste=pe=>{pe.preventDefault();
     const t=(pe.clipboardData||window.clipboardData).getData('text/plain');
-    document.execCommand('insertText',false,a.type==='edit'?t.replace(/\n+/g,' '):t);
-  };
-  el.onkeydown=ke=>{
-    ke.stopPropagation();
+    document.execCommand('insertText',false,a.type==='edit'?t.replace(/\n+/g,' '):t);};
+  el.onkeydown=ke=>{ke.stopPropagation();
     if(ke.key==='Escape'){ke.preventDefault();el.blur();return;}
-    if(ke.key==='Enter'){
-      ke.preventDefault();
-      if(a.type==='edit'){el.blur();}
-      else document.execCommand('insertLineBreak');
-    }
-  };
+    if(ke.key==='Enter'){ke.preventDefault();if(a.type==='edit'){el.blur();}else document.execCommand('insertLineBreak');}};
   const finish=()=>{
-    el.onpaste=null;el.onkeydown=null;
-    el.removeAttribute('contenteditable');
+    el.onpaste=null;el.onkeydown=null;el.removeAttribute('contenteditable');
+    try{const s=getSelection();if(s)s.removeAllRanges();}catch(_){}  // bersihkan sorotan abu-abu
     a.text=el.innerText.replace(/\n$/,'');
     if(a.type==='text'&&!a.text.trim()){quietRemove(a.id);return;}
     if(a.type==='edit'&&a.text===a.orig&&a.font==='helv'&&!a.bold&&!a.italic){quietRemove(a.id);return;}
@@ -883,8 +820,7 @@ function startEditing(el,a,ev){
 
 /* ---------- gambar ---------- */
 function placeImage(p,x,y){
-  const im=state.pendingImage;if(!im)return;
-  snapshot();
+  const im=state.pendingImage;if(!im)return;snapshot();
   const maxW=Math.min(220,p.wpt*0.6),ratio=im.h/im.w;
   state.annotations.push({id:nid(),pageId:p.id,type:'image',x,y,w:maxW,h:maxW*ratio,data:im.data,mime:im.mime});
   refreshPage(p.id);updateMeta();
@@ -892,31 +828,25 @@ function placeImage(p,x,y){
 
 /* ---------- coretan ---------- */
 function startStroke(e,page,p,dcv){
-  e.preventDefault();
-  try{page.setPointerCapture(e.pointerId);}catch(_){}
+  e.preventDefault();try{page.setPointerCapture(e.pointerId);}catch(_){}
   const isHL=state.tool==='highlight';
   const anno={id:nid(),pageId:p.id,type:isHL?'highlight':'pen',
     color:isHL?state.hlColor:state.color,width:isHL?state.hlW:state.penW,points:[]};
   const ctx=dcv.getContext('2d');
   ctx.save();ctx.setTransform(DPR*state.scale,0,0,DPR*state.scale,0,0);
-  ctx.globalAlpha=isHL?0.4:1;ctx.strokeStyle=anno.color;ctx.lineWidth=anno.width;
-  ctx.lineCap='round';ctx.lineJoin='round';
+  ctx.globalAlpha=isHL?0.4:1;ctx.strokeStyle=anno.color;ctx.lineWidth=anno.width;ctx.lineCap='round';ctx.lineJoin='round';
   const push=ev=>{const c=toPt(page,ev);anno.points.push({x:c.x,y:c.y});return c;};
   let last=push(e);
   const move=ev=>{const c=push(ev);ctx.beginPath();ctx.moveTo(last.x,last.y);ctx.lineTo(c.x,c.y);ctx.stroke();last=c;};
-  const up=()=>{
-    window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);
+  const up=()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);
     ctx.restore();suppressClick=true;
-    if(anno.points.length){snapshot();state.annotations.push(anno);updateMeta();}
-    refreshPage(p.id);
-  };
+    if(anno.points.length){snapshot();state.annotations.push(anno);updateMeta();}refreshPage(p.id);};
   window.addEventListener('pointermove',move);window.addEventListener('pointerup',up);
 }
 function eraseStroke(p,pt){
   let best=null,bd=1e9;
   annosOf(p.id).filter(a=>a.type==='pen'||a.type==='highlight').forEach(a=>{
-    a.points.forEach(q=>{const d=Math.hypot(q.x-pt.x,q.y-pt.y);if(d<bd){bd=d;best=a;}});
-  });
+    a.points.forEach(q=>{const d=Math.hypot(q.x-pt.x,q.y-pt.y);if(d<bd){bd=d;best=a;}});});
   if(best&&bd<Math.max(10,best.width))removeAnno(best.id);
 }
 
@@ -931,8 +861,7 @@ function quietRemove(id){
   const a=state.annotations.find(x=>x.id===id);
   state.annotations=state.annotations.filter(x=>x.id!==id);
   if(state.selected===id)state.selected=null;
-  if(a)refreshPage(a.pageId);
-  updateMeta();renderInspector();
+  if(a)refreshPage(a.pageId);updateMeta();renderInspector();
 }
 
 /* ---------- tools & inspector ---------- */
@@ -947,23 +876,16 @@ function setTool(t){
   renderInspector();
 }
 
-/* kontrol font & gaya untuk inspector */
 function fontField(get,set){
-  const f=document.createElement('div');f.className='field';
-  f.innerHTML='<label>Font</label>';
+  const f=document.createElement('div');f.className='field';f.innerHTML='<label>Font</label>';
   const seg=document.createElement('div');seg.className='seg';
-  ['helv','times','courier'].forEach(k=>{
-    const b=document.createElement('button');
-    b.className='segbtn f-'+k+(get().font===k?' on':'');
-    b.textContent=FONT_LABEL[k];
-    b.onclick=()=>{set({font:k});};
-    seg.appendChild(b);
-  });
+  ['helv','times','courier'].forEach(k=>{const b=document.createElement('button');
+    b.className='segbtn f-'+k+(get().font===k?' on':'');b.textContent=FONT_LABEL[k];
+    b.onclick=()=>set({font:k});seg.appendChild(b);});
   f.appendChild(seg);return f;
 }
 function styleField(get,set){
-  const f=document.createElement('div');f.className='field';
-  f.innerHTML='<label>Gaya</label>';
+  const f=document.createElement('div');f.className='field';f.innerHTML='<label>Gaya</label>';
   const row=document.createElement('div');row.className='stylerow';
   const bb=document.createElement('button');bb.className='stybtn b'+(get().bold?' on':'');bb.textContent='B';bb.title='Tebal';
   bb.onclick=()=>set({bold:!get().bold});
@@ -978,8 +900,7 @@ function renderInspector(){
   const sw=(colors,cur,fn)=>{const w=document.createElement('div');w.className='swatches';
     colors.forEach(c=>{const b=document.createElement('button');
       b.className='swatch'+(c.toLowerCase()===cur.toLowerCase()?' on':'');b.style.background=c;
-      if(c==='#FFFFFF')b.style.boxShadow='inset 0 0 0 1px #999';
-      b.onclick=()=>fn(c);w.appendChild(b);});return w;};
+      if(c==='#FFFFFF')b.style.boxShadow='inset 0 0 0 1px #999';b.onclick=()=>fn(c);w.appendChild(b);});return w;};
   const rng=(lab,val,min,max,st,unit,fn)=>{const f=document.createElement('div');f.className='field';
     f.innerHTML=`<label>${lab}</label>`;const row=document.createElement('div');row.className='rrow';
     const r=Object.assign(document.createElement('input'),{type:'range',min,max,step:st,value:val});
@@ -987,8 +908,6 @@ function renderInspector(){
     r.oninput=()=>{v.textContent=r.value+unit;fn(+r.value);};row.append(r,v);f.appendChild(row);return f;};
   const cf=(lab,cur,colors,fn)=>{const f=document.createElement('div');f.className='field';
     f.innerHTML=`<label>${lab}</label>`;f.appendChild(sw(colors,cur,fn));return f;};
-
-  /* setter utk anno terpilih: snapshot + refresh + rerender panel */
   const annoSet=a=>patch=>{snapshot();Object.assign(a,patch);refreshPage(a.pageId);renderInspector();};
 
   if(sel&&(sel.type==='edit'||sel.type==='text')){
@@ -997,10 +916,8 @@ function renderInspector(){
     body.appendChild(styleField(()=>sel,annoSet(sel)));
     body.appendChild(cf('Warna teks',sel.color,PALETTE,c=>annoSet(sel)({color:c})));
     body.appendChild(rng('Ukuran font',Math.round(sel.size),6,72,1,' pt',v=>{sel.size=v;refreshPage(sel.pageId);}));
-    if(sel.type==='edit'){
-      const b=document.createElement('button');b.className='mini';b.textContent='Pulihkan teks asli';
-      b.onclick=()=>removeAnno(sel.id);body.appendChild(b);
-    }
+    if(sel.type==='edit'){const b=document.createElement('button');b.className='mini';b.textContent='Pulihkan teks asli';
+      b.onclick=()=>removeAnno(sel.id);body.appendChild(b);}
     return;
   }
   if(sel&&sel.type==='image'){
@@ -1008,7 +925,6 @@ function renderInspector(){
     body.innerHTML='<p class="hint">Seret untuk memindah, tarik sudut kanan-bawah untuk ubah ukuran. <span class="kbd">Del</span> menghapus.</p>';
     return;
   }
-
   const heads={select:'Pilih',text:'Alat Teks',pen:'Alat Pena',highlight:'Alat Stabilo',image:'Alat Gambar',erase:'Hapus Objek'};
   title.textContent=heads[state.tool];
   if(state.tool==='select'){
@@ -1028,8 +944,7 @@ function renderInspector(){
     const p=document.createElement('p');p.className='hint';
     p.innerHTML=state.pendingImage?'Gambar siap — ketuk halaman untuk menempatkan.':'Pilih PNG/JPG, lalu ketuk halaman untuk menempatkan.';
     body.appendChild(p);
-    const b=document.createElement('button');b.className='mini';
-    b.textContent=state.pendingImage?'Ganti gambar':'Pilih gambar';
+    const b=document.createElement('button');b.className='mini';b.textContent=state.pendingImage?'Ganti gambar':'Pilih gambar';
     b.onclick=()=>$('#imgInput').click();body.appendChild(b);
   }else if(state.tool==='erase'){
     body.innerHTML='<p class="hint">Ketuk objek, suntingan teks, atau coretan untuk menghapus. Menghapus suntingan teks akan memulihkan teks asli.</p>';
@@ -1043,9 +958,7 @@ function updateMeta(){
   $('#mAnno').textContent=state.annotations.length;
 }
 
-/* ================= ZOOM BERJANGKAR (tanpa kedip) =================
-   Titik jangkar (tengah layar / posisi kursor / titik cubit) tetap
-   di tempat. Render baru dibangun di belakang layar lalu ditukar. */
+/* ---------- zoom berjangkar ---------- */
 let zoomT=null,zoomJob=null;
 function zoomTo(target,clientX,clientY){
   target=Math.min(4,Math.max(0.3,target));
@@ -1053,14 +966,12 @@ function zoomTo(target,clientX,clientY){
   const vx=(clientX!=null?clientX-rect.left:rect.width/2);
   const vy=(clientY!=null?clientY-rect.top :rect.height/2);
   if(!zoomJob)zoomJob={from:state.scale,sl:workspace.scrollLeft,st:workspace.scrollTop,vx,vy};
-  zoomJob.target=target;
-  $('#zoomVal').textContent=Math.round(target*100)+'%';
+  zoomJob.target=target;setZoomUI(target);
   clearTimeout(zoomT);
   zoomT=setTimeout(async()=>{
     const j=zoomJob;zoomJob=null;
     if(Math.abs(j.target-state.scale)<0.001)return;
-    state.scale=j.target;
-    await renderDocument();
+    state.scale=j.target;await renderDocument();
     const r=j.target/j.from;
     workspace.scrollLeft=(j.sl+j.vx)*r-j.vx;
     workspace.scrollTop =(j.st+j.vy)*r-j.vy;
@@ -1073,13 +984,13 @@ function fitWidth(rerender=true){
   zoomJob=null;clearTimeout(zoomT);
   const p=state.pages[0],swap=(p.rotation%180!==0);
   const wpt=swap?p.hpt:p.wpt;
-  const pad=window.innerWidth<=760?28:70;
+  const pad=window.innerWidth<=760?24:70;
   state.scale=Math.min(4,Math.max(0.3,(workspace.clientWidth-pad)/wpt));
-  $('#zoomVal').textContent=Math.round(state.scale*100)+'%';
+  setZoomUI(state.scale);
   if(rerender)renderDocument().then(()=>{workspace.scrollLeft=0;});
 }
 
-/* ---------- cubit 2 jari ---------- */
+/* ---------- cubit 2 jari (kustom, crisp) ---------- */
 const pinch={active:false,d0:0,s0:1,live:1,st:0,sl:0,cx:0,cy:0};
 const tdist=t=>Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY);
 workspace.addEventListener('touchstart',e=>{
@@ -1100,35 +1011,27 @@ workspace.addEventListener('touchmove',e=>{
     const k=tdist(e.touches)/pinch.d0;
     pinch.live=Math.min(4,Math.max(0.3,pinch.s0*k));
     doc.style.transform=`scale(${pinch.live/state.scale})`;
-    $('#zoomVal').textContent=Math.round(pinch.live*100)+'%';
+    setZoomUI(pinch.live);
   }
 },{passive:false});
 async function endPinch(){
   if(!pinch.active)return;
-  pinch.active=false;
-  const s=pinch.live;
+  pinch.active=false;const s=pinch.live;
   doc.style.transform='';doc.style.transformOrigin='';
   if(Math.abs(s-state.scale)>0.01){
-    const ratio=s/state.scale;
-    state.scale=s;
-    await renderDocument();
+    const ratio=s/state.scale;state.scale=s;await renderDocument();
     workspace.scrollLeft=(pinch.sl+pinch.cx)*ratio-pinch.cx;
     workspace.scrollTop =(pinch.st+pinch.cy)*ratio-pinch.cy;
   }
-  $('#zoomVal').textContent=Math.round(state.scale*100)+'%';
+  setZoomUI(state.scale);
 }
 workspace.addEventListener('touchend',e=>{if(e.touches.length<2)endPinch();},{passive:true});
 workspace.addEventListener('touchcancel',()=>endPinch(),{passive:true});
-
-/* Ctrl + roda mouse = zoom pada posisi kursor */
 workspace.addEventListener('wheel',e=>{
-  if(e.ctrlKey&&state.pages.length){
-    e.preventDefault();
-    zoomTo(curZoom()*(e.deltaY<0?1.1:0.9),e.clientX,e.clientY);
-  }
+  if(e.ctrlKey&&state.pages.length){e.preventDefault();zoomTo(curZoom()*(e.deltaY<0?1.1:0.9),e.clientX,e.clientY);}
 },{passive:false});
 
-/* ---------- EKSPOR ---------- */
+/* ---------- ekspor ---------- */
 async function exportPDF(){
   if(!state.pages.length)return;
   if(document.activeElement?.isContentEditable)document.activeElement.blur();
@@ -1138,45 +1041,35 @@ async function exportPDF(){
     const src=await PDFDocument.load(state.originalBytes,{ignoreEncryption:true});
     const out=await PDFDocument.create();
     const imgCache={},fontCache={};
-
     const FONT_STD={
       helv:['Helvetica','HelveticaBold','HelveticaOblique','HelveticaBoldOblique'],
       times:['TimesRoman','TimesRomanBold','TimesRomanItalic','TimesRomanBoldItalic'],
       courier:['Courier','CourierBold','CourierOblique','CourierBoldOblique']
     };
     async function getFont(a){
-      const fam=a.font||'helv';
-      const key=fam+'-'+(a.bold?1:0)+(a.italic?1:0);
-      if(!fontCache[key]){
-        const idx=(a.bold?1:0)+(a.italic?2:0);
-        fontCache[key]=await out.embedFont(StandardFonts[FONT_STD[fam][idx]]);
-      }
+      const fam=a.font||'helv';const key=fam+'-'+(a.bold?1:0)+(a.italic?1:0);
+      if(!fontCache[key]){const idx=(a.bold?1:0)+(a.italic?2:0);
+        fontCache[key]=await out.embedFont(StandardFonts[FONT_STD[fam][idx]]);}
       return fontCache[key];
     }
-
     for(const ps of state.pages){
       let page;
       if(ps.originalIndex>=0){const[cp]=await out.copyPages(src,[ps.originalIndex]);page=out.addPage(cp);}
       else page=out.addPage([ps.wpt,ps.hpt]);
       const H=page.getSize().height;
-
       for(const a of annosOf(ps.id)){
         try{
           if(a.type==='edit'){
-            const fnt=await getFont(a);
-            const txt=latin1(a.text);
-            const tw=fnt.widthOfTextAtSize(txt||' ',a.size);
-            const cw=Math.max(a.w,tw)+4;
+            const fnt=await getFont(a);const txt=latin1(a.text);
+            const tw=fnt.widthOfTextAtSize(txt||' ',a.size);const cw=Math.max(a.w,tw)+4;
             const cc=hex2rgb(a.cover||'#ffffff');
             page.drawRectangle({x:a.x-2,y:H-a.top-a.h-2,width:cw,height:a.h+4,color:rgb(cc.r,cc.g,cc.b)});
             const tc=hex2rgb(a.color);
             page.drawText(txt,{x:a.x,y:H-a.bl,size:a.size,font:fnt,color:rgb(tc.r,tc.g,tc.b)});
           }else if(a.type==='text'){
-            const fnt=await getFont(a);
-            const c=hex2rgb(a.color);
+            const fnt=await getFont(a);const c=hex2rgb(a.color);
             latin1(a.text).split('\n').forEach((ln,i)=>{
-              page.drawText(ln,{x:a.x,y:H-a.y-a.size*0.82-(i*a.size*1.25),size:a.size,font:fnt,color:rgb(c.r,c.g,c.b)});
-            });
+              page.drawText(ln,{x:a.x,y:H-a.y-a.size*0.82-(i*a.size*1.25),size:a.size,font:fnt,color:rgb(c.r,c.g,c.b)});});
           }else if(a.type==='pen'||a.type==='highlight'){
             if(!a.points.length)continue;
             const d='M '+a.points.map(q=>`${q.x.toFixed(2)} ${q.y.toFixed(2)}`).join(' L ');
@@ -1185,17 +1078,14 @@ async function exportPDF(){
               borderOpacity:a.type==='highlight'?0.4:1,borderLineCap:1});
           }else if(a.type==='image'){
             const key=a.data.slice(0,64)+a.data.length;
-            if(!imgCache[key]){
-              const bytes=Uint8Array.from(atob(a.data.split(',')[1]),ch=>ch.charCodeAt(0));
-              imgCache[key]=a.mime==='image/png'?await out.embedPng(bytes):await out.embedJpg(bytes);
-            }
+            if(!imgCache[key]){const bytes=Uint8Array.from(atob(a.data.split(',')[1]),ch=>ch.charCodeAt(0));
+              imgCache[key]=a.mime==='image/png'?await out.embedPng(bytes):await out.embedJpg(bytes);}
             page.drawImage(imgCache[key],{x:a.x,y:H-a.y-a.h,width:a.w,height:a.h});
           }
         }catch(err){console.warn('Lewati anotasi:',err);}
       }
       if(ps.rotation)page.setRotation(degrees(((page.getRotation().angle||0)+ps.rotation)%360));
     }
-
     out.setProducer('Inkline — © Darkness 2026');
     const data=await out.save();
     const url=URL.createObjectURL(new Blob([data],{type:'application/pdf'}));
@@ -1208,27 +1098,20 @@ async function exportPDF(){
 
 /* ---------- file input & drag-drop ---------- */
 const openFile=()=>$('#fileInput').click();
-$('#fileInput').addEventListener('change',e=>{
-  const f=e.target.files[0];if(!f)return;
-  const r=new FileReader();r.onload=()=>loadPDF(r.result,f.name);r.readAsArrayBuffer(f);
-  e.target.value='';
-});
-$('#imgInput').addEventListener('change',e=>{
-  const f=e.target.files[0];if(!f)return;
+$('#fileInput').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();r.onload=()=>loadPDF(r.result,f.name);r.readAsArrayBuffer(f);e.target.value='';});
+$('#imgInput').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;
   const r=new FileReader();
   r.onload=()=>{const img=new Image();img.onload=()=>{
     state.pendingImage={data:r.result,mime:f.type,w:img.naturalWidth,h:img.naturalHeight};
     if(state.tool!=='image')setTool('image');else renderInspector();
     toast('Gambar dimuat — ketuk halaman untuk menempatkan.');
   };img.src=r.result;};
-  r.readAsDataURL(f);e.target.value='';
-});
+  r.readAsDataURL(f);e.target.value='';});
 ['dragenter','dragover'].forEach(ev=>document.addEventListener(ev,e=>{e.preventDefault();$('#drop')?.classList.add('over');}));
 ['dragleave','drop'].forEach(ev=>document.addEventListener(ev,e=>{e.preventDefault();$('#drop')?.classList.remove('over');}));
-document.addEventListener('drop',e=>{
-  const f=[...(e.dataTransfer?.files||[])].find(x=>x.type==='application/pdf');if(!f)return;
-  const r=new FileReader();r.onload=()=>loadPDF(r.result,f.name);r.readAsArrayBuffer(f);
-});
+document.addEventListener('drop',e=>{const f=[...(e.dataTransfer?.files||[])].find(x=>x.type==='application/pdf');if(!f)return;
+  const r=new FileReader();r.onload=()=>loadPDF(r.result,f.name);r.readAsArrayBuffer(f);});
 
 /* ---------- bind ---------- */
 $('#openBtn').onclick=openFile;$('#openBtn2').onclick=e=>{e.stopPropagation();openFile();};
@@ -1237,11 +1120,10 @@ $('#exportBtn').onclick=exportPDF;
 $('#undoBtn').onclick=undo;
 $('#addBlank').onclick=async()=>{snapshot();
   state.pages.push({id:nid(),originalIndex:-1,rotation:0,wpt:A4.w,hpt:A4.h});
-  await renderDocument();updateMeta();
-  workspace.scrollTo({top:workspace.scrollHeight,behavior:'smooth'});};
+  await renderDocument();updateMeta();workspace.scrollTo({top:workspace.scrollHeight,behavior:'smooth'});};
 $('#zoomIn').onclick=()=>zoomTo(curZoom()+0.15);
 $('#zoomOut').onclick=()=>zoomTo(curZoom()-0.15);
-$('#fitBtn').onclick=()=>fitWidth();
+$('#fitBtn2').onclick=()=>{fitWidth();if(window.innerWidth<=1060)$('#inspector').classList.remove('open');};
 $('#inspToggle').onclick=()=>$('#inspector').classList.toggle('open');
 document.querySelectorAll('.tool').forEach(b=>b.onclick=()=>{setTool(b.dataset.tool);
   if(window.innerWidth<=1060)$('#inspector').classList.remove('open');});
