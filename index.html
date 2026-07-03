@@ -799,7 +799,12 @@ function caretAt(el,ev){
 
 /* ---------- pencocokan font otomatis dari pustaka online ---------- */
 // padanan metric-compatible (lebar sama → tata letak tidak bergeser)
-const WEBFONTS={calibri:'carlito', cambria:'caladea', georgia:'gelasio'};
+const WEBFONTS={
+  calibri:'carlito', cambria:'caladea', georgia:'gelasio',
+  arial:'arimo', helvetica:'arimo',
+  'times new roman':'tinos', times:'tinos',
+  'courier new':'cousine', courier:'cousine'
+};
 const webCache={};
 async function ensureWebFont(family,weight,italic,label){
   const key=`${family}-${weight}-${italic?'i':'n'}`;
@@ -840,6 +845,9 @@ async function detectFont(p,it){
       if(/calibri/.test(nm)){realKey='calibri';label='Calibri';}
       else if(/cambria/.test(nm)){realKey='cambria';label='Cambria';}
       else if(/georgia/.test(nm)){realKey='georgia';label='Georgia';}
+      else if(/times[\s-]*new[\s-]*roman|timesnewroman/.test(nm)){realKey='times new roman';label='Times New Roman';}
+      else if(/courier[\s-]*new|couriernew/.test(nm)){realKey='courier new';label='Courier New';}
+      else if(/arial|helvetica/.test(nm)){realKey='arial';label='Arial';}
     }
   }catch(_){}
   return {font,bold,italic,realKey,label};
