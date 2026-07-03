@@ -450,7 +450,7 @@
 pdfjsLib.GlobalWorkerOptions.workerSrc =
   'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-const PALETTE=['#111827','#4C6EF5','#C0392B','#1E8449','#B7791F','#FFFFFF'];
+const PALETTE=['#000000','#4C6EF5','#C0392B','#1E8449','#B7791F','#FFFFFF'];
 const HL=['#FFD43B','#63E6BE','#FF8787','#74C0FC','#B197FC'];
 const A4={w:595.28,h:841.89};
 const DPR=Math.min(2,window.devicePixelRatio||1);
@@ -478,7 +478,7 @@ const state={
   pdfjsDoc:null, originalBytes:null, fileName:'',
   pages:[], textItems:new Map(), textStyles:new Map(), annotations:[],
   scale:1.2, tool:'select', selected:null,
-  color:'#111827', penW:2.5, hlColor:'#FFD43B', hlW:14, fontSize:16,
+  color:'#000000', penW:2.5, hlColor:'#FFD43B', hlW:14, fontSize:16,
   font:'helv', bold:false, italic:false,
   pendingImage:null, history:[], textCount:0, customFonts:[],
 };
@@ -868,6 +868,24 @@ async function detectFont(p,it){
 }
 
 /* ---------- edit teks native ---------- */
+function sampleInk(p,it){
+  // warna tinta asli = piksel TERGELAP di kotak teks (kebalikan sampleCover)
+  try{
+    const base=pageEls[p.id].base,ctx=base.getContext('2d');
+    const S=state.scale*DPR;
+    const x0=it.x*S, x1=(it.x+it.w)*S, y0=it.top*S, y1=(it.top+it.h)*S;
+    let best=[17,24,39], dl=1e9;
+    for(let gx=0;gx<=6;gx++)for(let gy=0;gy<=4;gy++){
+      const px=Math.max(0,Math.min(base.width-1, Math.round(x0+(x1-x0)*gx/6)));
+      const py=Math.max(0,Math.min(base.height-1,Math.round(y0+(y1-y0)*gy/4)));
+      const d=ctx.getImageData(px,py,1,1).data;
+      const lum=d[0]+d[1]+d[2];
+      if(lum<dl){dl=lum;best=[d[0],d[1],d[2]];}
+    }
+    if(dl<=90) return '#000000';          // mendekati hitam → hitam pekat
+    return rgb2hex(best[0],best[1],best[2]);
+  }catch(_){return '#000000';}
+}
 function sampleCover(p,it){
   try{
     const base=pageEls[p.id].base,ctx=base.getContext('2d');
@@ -904,7 +922,7 @@ async function editNative(p,idx,ev){
   snapshot();
   const a={id:nid(),pageId:p.id,type:'edit',item:idx,orig:it.str,
     x:it.x,top:it.top,bl:it.bl,w:it.w,h:it.h,size:it.size,text:it.str,
-    color:'#111827',cover:sampleCover(p,it),
+    color:sampleInk(p,it),cover:sampleCover(p,it),
     font,bold,italic, det:{font,bold,italic}, dispFamily:det.disp};
   state.annotations.push(a);refreshPage(p.id);updateMeta();
   const el=pageEls[p.id].alayer.querySelector(`[data-id="${a.id}"]`);if(el)startEditing(el,a,ev);
