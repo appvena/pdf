@@ -890,18 +890,21 @@ function sampleCover(p,it){
   try{
     const base=pageEls[p.id].base,ctx=base.getContext('2d');
     const S=state.scale*DPR;
-    // sampel grid di seluruh kotak teks, ambil piksel PALING TERANG (= latar,
-    // bukan huruf). Menghindari titik gelap/abu-abu di tengah glyph.
-    const x0=it.x*S, x1=(it.x+it.w)*S, y0=it.top*S, y1=(it.top+it.h)*S;
+    // area sedikit melampaui teks ke atas & bawah → menjangkau latar murni di
+    // celah baris, lalu ambil piksel PALING TERANG (= latar, bukan huruf).
+    const x0=(it.x-2)*S, x1=(it.x+it.w+2)*S;
+    const y0=(it.top-it.h*0.35)*S, y1=(it.top+it.h*1.35)*S;
     let best=[255,255,255], bl=-1;
-    for(let gx=0;gx<=4;gx++)for(let gy=0;gy<=3;gy++){
-      const px=Math.max(0,Math.min(base.width-1, Math.round(x0+(x1-x0)*gx/4)));
-      const py=Math.max(0,Math.min(base.height-1,Math.round(y0+(y1-y0)*gy/3)));
+    for(let gx=0;gx<=6;gx++)for(let gy=0;gy<=5;gy++){
+      const px=Math.max(0,Math.min(base.width-1, Math.round(x0+(x1-x0)*gx/6)));
+      const py=Math.max(0,Math.min(base.height-1,Math.round(y0+(y1-y0)*gy/5)));
       const d=ctx.getImageData(px,py,1,1).data;
       const lum=d[0]+d[1]+d[2];
       if(lum>bl){bl=lum;best=[d[0],d[1],d[2]];}
     }
-    if(bl>=720) return '#ffffff';          // mendekati putih → jadikan putih bersih
+    const mx=Math.max(best[0],best[1],best[2]), mn=Math.min(best[0],best[1],best[2]);
+    // hanya putih NETRAL yang dibulatkan ke putih; krem/berwarna dipertahankan
+    if(bl>=735 && (mx-mn)<=6) return '#ffffff';
     return rgb2hex(best[0],best[1],best[2]);
   }catch(_){return'#ffffff';}
 }
