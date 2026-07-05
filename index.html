@@ -330,7 +330,7 @@
 <body class="tool-select">
 
 <header class="topbar">
-  <div class="brand"><span class="mark">Ink<b>line</b></span><span class="ver">v10</span><span class="sub">Editor PDF</span></div>
+  <div class="brand"><span class="mark">Ink<b>line</b></span><span class="ver">v11</span><span class="sub">Editor PDF</span></div>
   <div class="spacer"></div>
   <div class="tb-group">
     <button class="btn" id="openBtn">
@@ -396,7 +396,7 @@
       <div class="ititle">Dokumen</div>
       <div class="meta" id="docMeta">
         <span class="fname">Belum ada file</span>
-        <div>Versi aplikasi: <b style="color:var(--gold-2)">v10 · SRISP 2026</b></div>
+        <div>Versi aplikasi: <b style="color:var(--gold-2)">v11 · SRISP 2026</b></div>
         <div>Halaman: <b id="mPages">—</b></div>
         <div>Teks dapat diedit: <b id="mText">—</b></div>
         <div>Anotasi &amp; suntingan: <b id="mAnno">0</b></div>
@@ -440,7 +440,7 @@
 
 <script>
 /* ================================================================
-   Inkline v9 — © SRISP 2026
+   Inkline v11 — © SRISP 2026
    Baru di v9: pencocokan font OTOMATIS dari pustaka online. Nama font
    asli dideteksi dari PDF, lalu padanan metric-compatible-nya ditarik
    langsung dari @fontsource (Calibri→Carlito, Cambria→Caladea,
@@ -810,22 +810,31 @@ function caretAt(el,ev){
   const rr=document.createRange();rr.selectNodeContents(el);rr.collapse(false);sel.addRange(rr);
 }
 
-/* ---------- pencocokan font otomatis dari pustaka online ---------- */
-// padanan metric-compatible (lebar sama → tata letak tidak bergeser)
-const WEBFONTS={
-  calibri:'carlito', cambria:'caladea', georgia:'gelasio',
-  arial:'arimo', helvetica:'arimo',
-  'times new roman':'tinos', times:'tinos',
-  'courier new':'cousine', courier:'cousine'
+/* ---------- pencocokan font otomatis dari pustaka online (@fontsource) ---------- */
+// Peta font berlisensi (MS/Apple) → padanan metric-compatible legal di @fontsource
+const MSMAP={
+  'arial':'arimo','helvetica':'arimo','arial narrow':'arimo','liberation sans':'arimo',
+  'times new roman':'tinos','times':'tinos','liberation serif':'tinos',
+  'courier new':'cousine','courier':'cousine','liberation mono':'cousine',
+  'calibri':'carlito','cambria':'caladea','georgia':'gelasio'
 };
-const webCache={};
+function cleanFontName(nm){
+  let s=(nm||'').replace(/^[A-Za-z0-9]{6}\+/,'');
+  s=s.replace(/\b(bold|italic|oblique|regular|medium|light|semibold|demibold|black|heavy|thin|condensed|narrow|book|roman|mt|ps|std|pro|ce)\b/gi,' ');
+  s=s.replace(/[_,\-]+/g,' ').replace(/\s+/g,' ').trim();
+  return s;
+}
+function slugify(s){return s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');}
+
+const webCache={}, webFail=new Set();
 async function ensureWebFont(family,weight,italic,label){
   const key=`${family}-${weight}-${italic?'i':'n'}`;
   if(webCache[key])return webCache[key];
+  if(webFail.has(key))throw new Error('cached-fail');
   const style=italic?'italic':'normal';
   const url=`https://cdn.jsdelivr.net/npm/@fontsource/${family}/files/${family}-latin-${weight}-${style}.ttf`;
-  const res=await fetch(url);
-  if(!res.ok)throw new Error('fetch '+res.status);
+  let res; try{res=await fetch(url);}catch(e){webFail.add(key);throw e;}
+  if(!res.ok){webFail.add(key);throw new Error('fetch '+res.status);}
   const buf=await res.arrayBuffer();
   const id='wf'+(uid++), cssFam='inkweb_'+id;
   const ff=new FontFace(cssFam,buf);await ff.load();document.fonts.add(ff);
@@ -836,35 +845,36 @@ async function ensureWebFont(family,weight,italic,label){
 
 /* ---------- deteksi font otomatis (family + tebal/miring + nama asli) ---------- */
 async function detectFont(p,it){
-  let font='helv',bold=false,italic=false,realKey='',label='',disp='';
+  let bold=false,italic=false,disp='',name='',fsId='',cat='sans';
   try{
     const st=state.textStyles.get(p.originalIndex)||{};
     const fam=((st[it.fontName]&&st[it.fontName].fontFamily)||'').toLowerCase();
-    if(/mono|courier|consol/.test(fam)) font='courier';
-    else if(/serif/.test(fam)&&!/sans/.test(fam)) font='times';
-    else font='helv';
+    if(/mono/.test(fam)) cat='mono';
+    else if(/serif/.test(fam)&&!/sans/.test(fam)) cat='serif';
+    else cat='sans';
   }catch(_){}
   try{
     const pg=await state.pdfjsDoc.getPage(p.originalIndex+1);
     if(pg.commonObjs.has(it.fontName)){
       const fo=pg.commonObjs.get(it.fontName);
-      disp=(fo&&fo.loadedName)||'';                 // font tertanam asli → tampilan persis
-      const nm=((fo&&(fo.name||fo.loadedName))||'').toLowerCase();
+      disp=(fo&&fo.loadedName)||'';
+      const raw=((fo&&(fo.name||fo.loadedName))||'');
+      const nm=raw.toLowerCase();
       bold  = !!(fo&&fo.bold)   || /bold|black|heavy|semibold|-bd|,bd/.test(nm);
       italic= !!(fo&&fo.italic) || /italic|oblique|-it|,it/.test(nm);
-      if(/times|georgia|roman|minion|garamond|serif/.test(nm)&&!/sans/.test(nm)) font='times';
-      else if(/courier|mono|consol/.test(nm)) font='courier';
-      else if(/arial|helvetica|calibri|verdana|tahoma|segoe|sans/.test(nm)) font='helv';
-      // nama asli untuk pencocokan pustaka online (untuk ekspor)
-      if(/calibri/.test(nm)){realKey='calibri';label='Calibri';}
-      else if(/cambria/.test(nm)){realKey='cambria';label='Cambria';}
-      else if(/georgia/.test(nm)){realKey='georgia';label='Georgia';}
-      else if(/times[\s-]*new[\s-]*roman|timesnewroman/.test(nm)){realKey='times new roman';label='Times New Roman';}
-      else if(/courier[\s-]*new|couriernew/.test(nm)){realKey='courier new';label='Courier New';}
-      else if(/arial|helvetica/.test(nm)){realKey='arial';label='Arial';}
+      // deteksi monospace kuat: nama + flag FixedPitch (bit-0) + properti pdf.js
+      const fixed=(fo&&(fo.isMonospace||fo.fixedPitch))||(fo&&typeof fo.flags==='number'&&(fo.flags&1));
+      if(fixed || /mono|courier|consol|typewriter|gothic|ocr|prestige|fixed|inconsolata|jetbrains|monaco|menlo|fira\s*code/.test(nm)) cat='mono';
+      else if(/times|georgia|roman|minion|garamond|serif|cambria|antiqua|palatino/.test(nm)&&!/sans/.test(nm)) cat='serif';
+      else if(/arial|helvetica|calibri|verdana|tahoma|segoe|frutiger|myriad|sans/.test(nm)) cat='sans';
+      name=cleanFontName(raw);
+      const low=name.toLowerCase();
+      if(MSMAP[low]) fsId=MSMAP[low];
+      else if(name.length>=3) fsId=slugify(name);   // coba tarik font apa pun dari pustaka via namanya
     }
   }catch(_){}
-  return {font,bold,italic,realKey,label,disp};
+  const font = cat==='mono'?'courier':(cat==='serif'?'times':'helv');
+  return {font,bold,italic,disp,name,fsId,cat};
 }
 
 /* ---------- edit teks native ---------- */
@@ -914,13 +924,13 @@ async function editNative(p,idx,ev){
   if(exist){const el=pageEls[p.id].alayer.querySelector(`[data-id="${exist.id}"]`);if(el)startEditing(el,exist,ev);return;}
   const det=await detectFont(p,it);                    // deteksi font asli otomatis
   let font=det.font,bold=det.bold,italic=det.italic;
-  const fam=WEBFONTS[det.realKey];
-  if(fam){                                             // ada padanan online → tarik otomatis
+  if(det.fsId){                                        // coba tarik font dari pustaka online
+    toast('Mencocokkan font…',true);
     try{
-      const rec=await ensureWebFont(fam, bold?700:400, italic, det.label);
-      font='custom:'+rec.id; bold=false; italic=false;   // gaya sudah menyatu di file
-      toast('Font asli terdeteksi ('+det.label+') — dicocokkan otomatis.');
-    }catch(_){ /* offline / gagal ambil → pakai font dasar terdekat */ }
+      const rec=await ensureWebFont(det.fsId, bold?700:400, italic, det.name);
+      font='custom:'+rec.id; bold=false; italic=false;
+      hideToast(); toast('Font "'+(det.name||det.fsId)+'" dicocokkan dari pustaka.');
+    }catch(_){ hideToast(); /* tak ada di pustaka / offline → pakai kategori dasar */ }
   }
   snapshot();
   const a={id:nid(),pageId:p.id,type:'edit',item:idx,orig:it.str,
@@ -1362,7 +1372,7 @@ function saveSession(){
   saveT=setTimeout(async()=>{
     try{
       await idbPut('current',{
-        v:10, fileName:state.fileName, scale:state.scale, uid,
+        v:11, fileName:state.fileName, scale:state.scale, uid,
         bytes:state.originalBytes.slice(),
         pages:JSON.parse(JSON.stringify(state.pages)),
         annotations:JSON.parse(JSON.stringify(state.annotations)),
