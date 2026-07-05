@@ -466,7 +466,8 @@ function fontCssOf(a){
 }
 function fontOptions(){
   const base=[{key:'helv',label:'Sans',cls:'f-helv'},{key:'times',label:'Serif',cls:'f-times'},{key:'courier',label:'Mono',cls:'f-courier'}];
-  const cust=state.customFonts.map(c=>({key:'custom:'+c.id,label:c.label,cls:'',family:c.family}));
+  // hanya tampilkan font yang dimuat manual; font hasil pencocokan otomatis (auto) disembunyikan
+  const cust=state.customFonts.filter(c=>!c.auto).map(c=>({key:'custom:'+c.id,label:c.label,cls:'',family:c.family}));
   return base.concat(cust);
 }
 
@@ -654,14 +655,11 @@ function buildTextLayer(layer,p){
 
 function applyFontCss(el,a){
   const base=fontCssOf(a);
-  if(a.dispFamily){                        // pakai font tertanam asli → cocok persis di layar
-    el.style.fontFamily=`"${a.dispFamily}", ${base}`;
-    el.style.fontWeight='normal';el.style.fontStyle='normal';
-  }else{
-    el.style.fontFamily=base;
-    el.style.fontWeight=a.bold?'700':'400';
-    el.style.fontStyle=a.italic?'italic':'normal';
-  }
+  // pakai font tertanam asli lebih dulu, lalu font pengganti sebagai fallback
+  el.style.fontFamily = a.dispFamily ? `"${a.dispFamily}", ${base}` : base;
+  // ketebalan & miring SELALU diterapkan (agar bold tetap muncul walau fallback)
+  el.style.fontWeight = a.bold?'700':'400';
+  el.style.fontStyle  = a.italic?'italic':'normal';
   const w=(a.weight||0)*state.scale;
   el.style.webkitTextStroke = w>0 ? (w.toFixed(2)+'px '+(a.color||'#111827')) : '';
 }
@@ -837,7 +835,8 @@ async function ensureWebFont(family,weight,italic,label){
   if(!res.ok){webFail.add(key);throw new Error('fetch '+res.status);}
   const buf=await res.arrayBuffer();
   const id='wf'+(uid++), cssFam='inkweb_'+id;
-  const ff=new FontFace(cssFam,buf);await ff.load();document.fonts.add(ff);
+  const ff=new FontFace(cssFam,buf,{weight:String(weight),style:italic?'italic':'normal'});
+  await ff.load();document.fonts.add(ff);
   const rec={id,family:cssFam,bytes:new Uint8Array(buf.slice(0)),
     label:(label||family)+(weight>=700?' Bold':'')+(italic?' Italic':''),auto:true};
   state.customFonts.push(rec);webCache[key]=rec;return rec;
@@ -930,7 +929,7 @@ async function editNative(p,idx,ev){
     toast('Mencocokkan font…',true);
     try{
       const rec=await ensureWebFont(det.fsId, bold?700:400, italic, det.name);
-      font='custom:'+rec.id; bold=false; italic=false;
+      font='custom:'+rec.id;                            // bold/italic dipertahankan (FontFace sudah berbobot benar)
       hideToast(); toast('Font "'+(det.name||det.fsId)+'" dicocokkan dari pustaka.');
     }catch(_){ hideToast(); /* tak ada di pustaka / offline → pakai kategori dasar */ }
   }
