@@ -890,22 +890,22 @@ function sampleCover(p,it){
   try{
     const base=pageEls[p.id].base,ctx=base.getContext('2d');
     const S=state.scale*DPR;
-    // area sedikit melampaui teks ke atas & bawah → menjangkau latar murni di
-    // celah baris, lalu ambil piksel PALING TERANG (= latar, bukan huruf).
     const x0=(it.x-2)*S, x1=(it.x+it.w+2)*S;
     const y0=(it.top-it.h*0.35)*S, y1=(it.top+it.h*1.35)*S;
-    let best=[255,255,255], bl=-1;
-    for(let gx=0;gx<=6;gx++)for(let gy=0;gy<=5;gy++){
-      const px=Math.max(0,Math.min(base.width-1, Math.round(x0+(x1-x0)*gx/6)));
-      const py=Math.max(0,Math.min(base.height-1,Math.round(y0+(y1-y0)*gy/5)));
+    const samples=[];
+    for(let gx=0;gx<=8;gx++)for(let gy=0;gy<=6;gy++){
+      const px=Math.max(0,Math.min(base.width-1, Math.round(x0+(x1-x0)*gx/8)));
+      const py=Math.max(0,Math.min(base.height-1,Math.round(y0+(y1-y0)*gy/6)));
       const d=ctx.getImageData(px,py,1,1).data;
-      const lum=d[0]+d[1]+d[2];
-      if(lum>bl){bl=lum;best=[d[0],d[1],d[2]];}
+      samples.push([d[0],d[1],d[2],d[0]+d[1]+d[2]]);
     }
-    const mx=Math.max(best[0],best[1],best[2]), mn=Math.min(best[0],best[1],best[2]);
-    // hanya putih NETRAL yang dibulatkan ke putih; krem/berwarna dipertahankan
-    if(bl>=735 && (mx-mn)<=6) return '#ffffff';
-    return rgb2hex(best[0],best[1],best[2]);
+    let mx=0; samples.forEach(s=>{if(s[3]>mx)mx=s[3];});
+    const bg=samples.filter(s=>s[3]>=mx-120);           // buang piksel gelap (huruf/garis)
+    const avg=[0,0,0]; bg.forEach(s=>{avg[0]+=s[0];avg[1]+=s[1];avg[2]+=s[2];});
+    const n=bg.length||1; avg[0]=Math.round(avg[0]/n);avg[1]=Math.round(avg[1]/n);avg[2]=Math.round(avg[2]/n);
+    const M=Math.max(avg[0],avg[1],avg[2]),mn=Math.min(avg[0],avg[1],avg[2]);
+    if((avg[0]+avg[1]+avg[2])>=735 && (M-mn)<=6) return '#ffffff';  // hanya putih netral
+    return rgb2hex(avg[0],avg[1],avg[2]);
   }catch(_){return'#ffffff';}
 }
 async function editNative(p,idx,ev){
