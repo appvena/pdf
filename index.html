@@ -884,15 +884,17 @@ function sampleInk(p,it){
     const base=pageEls[p.id].base,ctx=base.getContext('2d');
     const S=state.scale*DPR;
     const x0=it.x*S, x1=(it.x+it.w)*S, y0=it.top*S, y1=(it.top+it.h)*S;
-    let best=[17,24,39], dl=1e9;
-    for(let gx=0;gx<=6;gx++)for(let gy=0;gy<=4;gy++){
-      const px=Math.max(0,Math.min(base.width-1, Math.round(x0+(x1-x0)*gx/6)));
-      const py=Math.max(0,Math.min(base.height-1,Math.round(y0+(y1-y0)*gy/4)));
+    let best=[0,0,0], dl=1e9;
+    for(let gx=0;gx<=12;gx++)for(let gy=0;gy<=7;gy++){       // grid rapat → kena inti huruf
+      const px=Math.max(0,Math.min(base.width-1, Math.round(x0+(x1-x0)*gx/12)));
+      const py=Math.max(0,Math.min(base.height-1,Math.round(y0+(y1-y0)*gy/7)));
       const d=ctx.getImageData(px,py,1,1).data;
       const lum=d[0]+d[1]+d[2];
       if(lum<dl){dl=lum;best=[d[0],d[1],d[2]];}
     }
-    if(dl<=90) return '#000000';          // mendekati hitam → hitam pekat
+    const mx=Math.max(best[0],best[1],best[2]), mn=Math.min(best[0],best[1],best[2]);
+    // gelap & netral → hitam pekat (hindari tampilan pudar); teks berwarna dipertahankan
+    if(dl<=180 && (mx-mn)<40) return '#000000';
     return rgb2hex(best[0],best[1],best[2]);
   }catch(_){return '#000000';}
 }
