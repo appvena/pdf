@@ -455,6 +455,20 @@ const HL=['#FFD43B','#63E6BE','#FF8787','#74C0FC','#B197FC'];
 const A4={w:595.28,h:841.89};
 const DPR=Math.min(2,window.devicePixelRatio||1);
 
+/* Batas aman luas kanvas (piksel backing-store). Di atas ambang ini,
+   browser — khususnya di HP — gagal mengalokasikan/melukis kanvas
+   sehingga sebagian halaman jadi kosong putih (garis kolom/kotak
+   "hilang") saat zoom besar. effPR() menurunkan kerapatan piksel
+   secara otomatis HANYA saat zoom ekstrem, jadi seluruh halaman tetap
+   tergambar; pada zoom normal tetap tajam penuh (pakai DPR). */
+const MAX_CANVAS_PX=16*1024*1024;
+function effPR(p){
+  const w=p.wpt*state.scale, h=p.hpt*state.scale;
+  let pr=DPR;
+  if(w*h*pr*pr>MAX_CANVAS_PX) pr=Math.sqrt(MAX_CANVAS_PX/(w*h));
+  return pr;
+}
+
 const FONT_CSS={helv:'Helvetica,Arial,sans-serif',times:'"Times New Roman",Times,serif',courier:'"Courier New",Courier,monospace'};
 const FONT_LABEL={helv:'Sans',times:'Serif',courier:'Mono'};
 function fontCssOf(a){
@@ -574,6 +588,7 @@ async function renderDocument(){
 
 async function buildPage(p,store){
   const w=p.wpt*state.scale,h=p.hpt*state.scale;
+  const pr=effPR(p);
   const rot=((p.rotation%360)+360)%360, swap=(rot===90||rot===270);
 
   const slot=document.createElement('div');slot.className='page-slot';
@@ -586,19 +601,19 @@ async function buildPage(p,store){
   page._pid=p.id;page._rot=rot;page._w=w;page._h=h;
 
   const base=document.createElement('canvas');
-  base.width=Math.round(w*DPR);base.height=Math.round(h*DPR);
+  base.width=Math.round(w*pr);base.height=Math.round(h*pr);
   base.style.width=w+'px';base.style.height=h+'px';
   const bctx=base.getContext('2d');
   bctx.fillStyle='#fff';bctx.fillRect(0,0,base.width,base.height);
   if(p.originalIndex>=0){
     const pg=await state.pdfjsDoc.getPage(p.originalIndex+1);
-    const vp=pg.getViewport({scale:state.scale*DPR});
+    const vp=pg.getViewport({scale:state.scale*pr});
     await pg.render({canvasContext:bctx,viewport:vp}).promise;
   }
   page.appendChild(base);
 
   const dcv=document.createElement('canvas');
-  dcv.width=Math.round(w*DPR);dcv.height=Math.round(h*DPR);
+  dcv.width=Math.round(w*pr);dcv.height=Math.round(h*pr);
   dcv.style.width=w+'px';dcv.style.height=h+'px';
   dcv.style.pointerEvents='none';
   page.appendChild(dcv);
@@ -619,9 +634,9 @@ function refreshPage(pid){const p=pageById(pid),els=pageEls[pid];if(!p||!els)ret
 function paintPage(p,els){drawOverlay(els.dcv,p);buildTextLayer(els.tlayer,p);buildAnnoLayer(els.alayer,p);}
 
 function drawOverlay(cv,p){
-  const ctx=cv.getContext('2d');
+  const ctx=cv.getContext('2d');const pr=effPR(p);
   ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,cv.width,cv.height);
-  ctx.setTransform(DPR*state.scale,0,0,DPR*state.scale,0,0);
+  ctx.setTransform(pr*state.scale,0,0,pr*state.scale,0,0);
   annosOf(p.id).filter(a=>a.type==='edit').forEach(a=>{
     ctx.fillStyle=a.cover||'#ffffff';ctx.fillRect(a.x-1.5,a.top-2,a.w+3,a.h+4);
   });
@@ -881,7 +896,7 @@ function sampleInk(p,it){
   // warna tinta asli = piksel TERGELAP di kotak teks (kebalikan sampleCover)
   try{
     const base=pageEls[p.id].base,ctx=base.getContext('2d');
-    const S=state.scale*DPR;
+    const S=state.scale*effPR(p);
     const x0=it.x*S, x1=(it.x+it.w)*S, y0=it.top*S, y1=(it.top+it.h)*S;
     let best=[0,0,0], dl=1e9;
     for(let gx=0;gx<=12;gx++)for(let gy=0;gy<=7;gy++){       // grid rapat → kena inti huruf
@@ -900,7 +915,7 @@ function sampleInk(p,it){
 function sampleCover(p,it){
   try{
     const base=pageEls[p.id].base,ctx=base.getContext('2d');
-    const S=state.scale*DPR;
+    const S=state.scale*effPR(p);
     const x0=(it.x-2)*S, x1=(it.x+it.w+2)*S;
     const y0=(it.top-it.h*0.35)*S, y1=(it.top+it.h*1.35)*S;
     const samples=[];
@@ -1040,8 +1055,8 @@ function startStroke(e,page,p,dcv){
   const isHL=state.tool==='highlight';
   const anno={id:nid(),pageId:p.id,type:isHL?'highlight':'pen',
     color:isHL?state.hlColor:state.color,width:isHL?state.hlW:state.penW,points:[]};
-  const ctx=dcv.getContext('2d');
-  ctx.save();ctx.setTransform(DPR*state.scale,0,0,DPR*state.scale,0,0);
+  const ctx=dcv.getContext('2d');const pr=effPR(p);
+  ctx.save();ctx.setTransform(pr*state.scale,0,0,pr*state.scale,0,0);
   ctx.globalAlpha=isHL?0.4:1;ctx.strokeStyle=anno.color;ctx.lineWidth=anno.width;ctx.lineCap='round';ctx.lineJoin='round';
   const push=ev=>{const c=toPt(page,ev);anno.points.push({x:c.x,y:c.y});return c;};
   let last=push(e);
