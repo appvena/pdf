@@ -1,526 +1,1476 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mobile Visualizer Studio Pro v8</title>
-    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@700&family=Playfair+Display:ital,wght@1,600&display=swap" rel="stylesheet">
-    <style>
-        * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        body { margin: 0; background: #05050a; color: #fff; padding: 10px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
-        .container { width: 100%; max-width: 500px; background: #0f0f1e; padding: 15px; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.6); border: 1px solid #1f1f3a; }
-        h2 { font-size: 15px; color: #00f0ff; margin-top: 0; text-align: center; text-transform: uppercase; letter-spacing: 1px; }
-        .control-group { margin-bottom: 10px; display: flex; flex-direction: column; gap: 3px; }
-        label { font-size: 10px; text-transform: uppercase; color: #8c8ca3; font-weight: bold; }
-        input[type="text"], input[type="file"], select, input[type="range"] { background: #15152a; border: 1px solid #25254a; color: #fff; padding: 8px; border-radius: 6px; font-size: 12px; width: 100%; }
-        .canvas-container { width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 8px; overflow: hidden; margin-bottom: 12px; border: 1px solid #25254a; }
-        #canvas { width: 100%; height: 100%; display: block; }
-        .btn-row { display: flex; gap: 10px; margin-bottom: 5px; }
-        .btn { color: #fff; border: none; padding: 12px; border-radius: 6px; font-weight: bold; font-size: 13px; cursor: pointer; text-transform: uppercase; flex: 1; }
-        #preview-btn { background: #00f0ff; color: #05050a; }
-        #action-btn { background: #ff0055; }
-        .btn:disabled { background: #1b1b30 !important; color: #4a4a6a !important; cursor: not-allowed; }
-        .status-box { background: #05050a; padding: 8px; border-radius: 6px; font-size: 11px; color: #a0a0c0; text-align: center; margin-top: 10px; border: 1px solid #15152a; }
-        .progress-bar-container { width: 100%; background: #15152a; height: 5px; border-radius: 3px; overflow: hidden; display: none; margin-top: 8px; }
-        .progress-bar { width: 0%; height: 100%; background: #00f0ff; }
-        audio { display: none; }
-        .row { display: flex; gap: 8px; }
-        .row > div { flex: 1; }
-        .section-title { font-size: 11px; color: #ff0055; font-weight: bold; margin: 10px 0 5px 0; text-transform: uppercase; border-bottom: 1px solid #25254a; padding-bottom: 2px; }
-        .footer { font-size: 10px; color: #4a4a6a; text-align: center; margin-top: 15px; letter-spacing: 1px; }
-    </style>
+<meta charset="UTF-8">
+<!-- v7: native pinch-zoom diizinkan sebagai cadangan (tanpa user-scalable=no) -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inkline — Editor PDF Native</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script src="https://unpkg.com/@pdf-lib/fontkit@1.1.1/dist/fontkit.umd.min.js"></script>
+<style>
+  :root{
+    --bg0:#0A0B0E; --bg1:#101218;
+    --glass:rgba(18,20,27,.86); --glass-2:rgba(28,31,40,.9);
+    --line:rgba(255,255,255,.07); --line-2:rgba(255,255,255,.12);
+    --gold:#C9A66B; --gold-2:#E4C68B; --gold-dim:rgba(201,166,107,.16);
+    --text:#EDEAE3; --muted:#8E93A0; --danger:#E5626A; --ok:#57B77C;
+    --paper:#fff;
+    --fd:"Fraunces",serif; --fb:"Inter",system-ui,sans-serif; --fm:"JetBrains Mono",monospace;
+    --sh-pop:0 18px 50px rgba(0,0,0,.55), 0 2px 8px rgba(0,0,0,.4);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  html{overflow-x:hidden}
+  body{
+    font-family:var(--fb);color:var(--text);overflow:hidden;
+    background:radial-gradient(1200px 800px at 70% -10%, #171a24 0%, var(--bg1) 45%, var(--bg0) 100%);
+    display:grid;grid-template-rows:56px 1fr 40px;grid-template-columns:minmax(0,1fr);
+    height:100dvh;width:100vw;max-width:100vw;
+    -webkit-font-smoothing:antialiased;
+  }
+  button{font-family:inherit;color:inherit;cursor:pointer;border:none;background:none}
+  ::selection{background:var(--gold);color:#14161B}
+  .page ::selection{background:rgba(76,110,245,.35);color:inherit}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:8px;border:2px solid transparent;background-clip:content-box}
+  ::-webkit-scrollbar-track{background:transparent}
+
+  /* ============ TOP BAR (dibuat sependek mungkin) ============ */
+  .topbar{
+    grid-row:1;display:flex;align-items:center;gap:10px;padding:0 14px;
+    background:var(--glass);backdrop-filter:blur(14px);position:relative;z-index:60;
+    min-width:0;overflow:hidden;
+  }
+  .topbar::after{
+    content:"";position:absolute;left:0;right:0;bottom:0;height:1px;
+    background:linear-gradient(90deg,transparent 0%,rgba(201,166,107,.55) 30%,rgba(201,166,107,.55) 70%,transparent 100%);
+    opacity:.6;
+  }
+  .brand{display:flex;align-items:baseline;gap:8px;user-select:none;flex:none;min-width:0}
+  .brand .mark{font-family:var(--fd);font-weight:600;font-size:21px;letter-spacing:.01em;white-space:nowrap}
+  .brand .mark b{color:var(--gold);font-weight:600}
+  .brand .sub{font-size:10px;color:var(--muted);letter-spacing:.2em;text-transform:uppercase;white-space:nowrap}
+  .brand .ver{font-family:var(--fm);font-size:10px;color:#191408;background:var(--gold);
+    padding:1px 6px;border-radius:6px;font-weight:600;flex:none;align-self:center}
+  .spacer{flex:1;min-width:0}
+  .tb-group{display:flex;align-items:center;gap:6px;flex:none}
+
+  .btn{
+    display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 14px;border-radius:10px;
+    font-size:13px;font-weight:500;border:1px solid var(--line-2);
+    background:rgba(255,255,255,.03);transition:.15s;white-space:nowrap;
+  }
+  .btn:hover{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.2)}
+  .btn svg{width:16px;height:16px;flex:none}
+  .btn.gold{
+    background:linear-gradient(180deg,var(--gold-2),var(--gold));color:#191408;border-color:transparent;
+    font-weight:600;box-shadow:0 4px 16px rgba(201,166,107,.28), inset 0 1px 0 rgba(255,255,255,.35);
+  }
+  .btn.gold:hover{filter:brightness(1.06)}
+  .btn:disabled{opacity:.35;cursor:not-allowed;pointer-events:none}
+  .ibtn{width:36px;height:36px;display:grid;place-items:center;border-radius:10px;transition:.15s;color:var(--muted);flex:none}
+  .ibtn:hover{background:rgba(255,255,255,.07);color:var(--text)}
+  .ibtn:disabled{opacity:.3;pointer-events:none}
+  .ibtn svg{width:17px;height:17px}
+  #inspToggle{display:none}
+
+  /* ============ STAGE ============ */
+  .stage{grid-row:2;display:grid;grid-template-columns:78px minmax(0,1fr) 292px;min-height:0;min-width:0}
+
+  /* ---- Tool rail ---- */
+  .rail-wrap{display:flex;align-items:center;justify-content:center;pointer-events:none}
+  .rail{
+    pointer-events:auto;display:flex;flex-direction:column;align-items:center;gap:5px;padding:10px 8px;
+    background:var(--glass);backdrop-filter:blur(14px);border:1px solid var(--line-2);
+    border-radius:16px;box-shadow:var(--sh-pop);
+  }
+  .tool{
+    position:relative;width:44px;height:44px;border-radius:12px;display:grid;place-items:center;
+    color:var(--muted);transition:.14s;
+  }
+  .tool svg{width:20px;height:20px}
+  .tool:hover{background:rgba(255,255,255,.07);color:var(--text)}
+  .tool.active{
+    background:linear-gradient(180deg,var(--gold-2),var(--gold));color:#191408;
+    box-shadow:0 4px 14px rgba(201,166,107,.3);
+  }
+  .tool[data-tip]::after{
+    content:attr(data-tip);position:absolute;left:54px;top:50%;transform:translateY(-50%) scale(.95);
+    background:#05060a;color:#fff;font-size:12px;padding:6px 10px;border-radius:8px;white-space:nowrap;
+    opacity:0;pointer-events:none;transition:.12s;box-shadow:var(--sh-pop);z-index:80;border:1px solid var(--line-2);
+  }
+  .tool:hover::after{opacity:1;transform:translateY(-50%) scale(1)}
+  .rail-sep{width:26px;height:1px;background:var(--line-2);margin:4px 0}
+
+  /* ---- Workspace ---- */
+  .workspace{
+    position:relative;overflow:auto;overscroll-behavior:contain;min-width:0;
+    background-image:radial-gradient(circle at 1px 1px, rgba(255,255,255,.04) 1px, transparent 0);
+    background-size:24px 24px;
+  }
+  .doc{
+    width:max-content;min-width:100%;
+    display:flex;flex-direction:column;align-items:center;gap:56px;padding:56px 30px 120px;
+  }
+
+  .page-slot{position:relative;display:flex;align-items:center;justify-content:center;flex:none}
+  .page{
+    position:absolute;background:var(--paper);
+    box-shadow:0 1px 2px rgba(0,0,0,.4),0 12px 28px rgba(0,0,0,.45),0 40px 90px rgba(0,0,0,.5);
+    border-radius:2px;overflow:hidden;
+    touch-action:pan-x pan-y;
+  }
+  .tool-pen .page,.tool-highlight .page{touch-action:none}
+  .anno,.rz{touch-action:none}
+
+  .page canvas{display:block;position:absolute;inset:0}
+  .text-layer,.anno-layer{position:absolute;inset:0}
+  .text-layer{pointer-events:none}
+  .anno-layer{pointer-events:none}
+  .anno{position:absolute;pointer-events:auto}
+
+  .native-text{
+    position:absolute;color:transparent;white-space:pre;transform-origin:0 0;
+    border-radius:2px;pointer-events:none;line-height:1;
+    -webkit-tap-highlight-color:rgba(201,166,107,.25);
+  }
+  .tool-select .native-text,.tool-text .native-text{pointer-events:auto;cursor:text}
+  .tool-select .native-text:hover,.tool-text .native-text:hover{
+    outline:1.5px dashed var(--gold);background:rgba(201,166,107,.14);
+  }
+
+  .anno.text,.anno.edit{
+    min-width:8px;min-height:1em;white-space:pre-wrap;outline:none;line-height:1.25;border-radius:2px;cursor:text;
+  }
+  .anno.edit{line-height:1;white-space:pre}
+  .anno.text[contenteditable],.anno.edit[contenteditable]{
+    box-shadow:0 0 0 1.5px var(--gold), 0 4px 14px rgba(0,0,0,.2);cursor:text;
+  }
+  .anno.image img{display:block;width:100%;height:100%;pointer-events:none;user-select:none;-webkit-user-drag:none}
+  .anno.selected{box-shadow:0 0 0 1.5px var(--gold)}
+  .tool-select .anno.text:not([contenteditable]),.tool-select .anno.image{cursor:move}
+  .rz{
+    position:absolute;right:-9px;bottom:-9px;width:18px;height:18px;border-radius:5px;
+    background:var(--gold);border:2px solid #fff;cursor:nwse-resize;display:none;box-shadow:0 2px 6px rgba(0,0,0,.4);
+  }
+  .anno.selected .rz{display:block}
+
+  /* toolbar per halaman */
+  .page-head{
+    position:absolute;top:-40px;left:50%;transform:translateX(-50%);
+    display:flex;align-items:center;gap:2px;padding:4px;border-radius:11px;
+    background:var(--glass);backdrop-filter:blur(12px);border:1px solid var(--line-2);
+    box-shadow:0 8px 24px rgba(0,0,0,.4);z-index:6;opacity:.55;transition:.15s;
+  }
+  .page-slot:hover .page-head{opacity:1}
+  .page-head .plab{font-family:var(--fm);font-size:11px;color:var(--gold);padding:0 9px 0 7px;white-space:nowrap;letter-spacing:.04em}
+  .page-head button{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;color:var(--muted);transition:.12s}
+  .page-head button:hover{background:rgba(255,255,255,.08);color:var(--text)}
+  .page-head button.dgr:hover{background:rgba(229,98,106,.18);color:var(--danger)}
+  .page-head button svg{width:15px;height:15px}
+
+  /* ---- Inspector ---- */
+  .inspector{
+    background:var(--glass);backdrop-filter:blur(14px);border-left:1px solid var(--line);
+    overflow-y:auto;display:flex;flex-direction:column;
+  }
+  .isec{padding:18px;border-bottom:1px solid var(--line)}
+  .ititle{
+    font-family:var(--fd);font-size:14px;font-weight:600;letter-spacing:.02em;color:var(--gold);
+    margin-bottom:14px;display:flex;align-items:center;gap:9px;
+  }
+  .ititle::before{content:"";width:16px;height:1px;background:var(--gold);opacity:.7}
+  .field{margin-bottom:15px}.field:last-child{margin-bottom:0}
+  .field>label{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:9px}
+  .swatches{display:flex;gap:9px;flex-wrap:wrap}
+  .swatch{width:28px;height:28px;border-radius:9px;border:2px solid transparent;transition:.12s;position:relative}
+  .swatch:hover{transform:translateY(-2px)}
+  .swatch.on{border-color:var(--gold);box-shadow:0 0 0 2px rgba(201,166,107,.3)}
+  input[type=range]{width:100%;accent-color:var(--gold);cursor:pointer}
+  .rrow{display:flex;align-items:center;gap:10px}
+  .rval{font-family:var(--fm);font-size:12px;min-width:44px;text-align:right;color:var(--gold-2)}
+
+  .segbtn{
+    flex:1 1 auto;min-width:56px;height:36px;border:1px solid var(--line-2);border-radius:9px;font-size:13px;
+    background:rgba(255,255,255,.02);transition:.13s;display:grid;place-items:center;
+  }
+  .segbtn:hover{background:rgba(255,255,255,.07)}
+  .segbtn.on{background:var(--gold-dim);border-color:var(--gold);color:var(--gold-2)}
+  .segbtn.f-helv{font-family:Helvetica,Arial,sans-serif}
+  .segbtn.f-times{font-family:"Times New Roman",Times,serif}
+  .segbtn.f-courier{font-family:"Courier New",Courier,monospace}
+  .stylerow{display:flex;gap:7px}
+  .stybtn{
+    width:44px;height:36px;border:1px solid var(--line-2);border-radius:9px;font-size:14px;
+    background:rgba(255,255,255,.02);transition:.13s;
+  }
+  .stybtn:hover{background:rgba(255,255,255,.07)}
+  .stybtn.on{background:var(--gold-dim);border-color:var(--gold);color:var(--gold-2)}
+  .stybtn.b{font-weight:800}
+  .stybtn.i{font-style:italic;font-family:Georgia,serif}
+
+  .meta{font-size:13px;line-height:1.8;color:var(--muted)}
+  .meta b{color:var(--text);font-weight:600}
+  .meta .fname{display:block;color:var(--text);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:4px}
+  .mini{
+    width:100%;display:flex;align-items:center;justify-content:center;gap:8px;height:38px;margin-top:10px;
+    border:1px solid var(--line-2);border-radius:10px;font-size:13px;transition:.14s;background:rgba(255,255,255,.02);
+  }
+  .mini:hover{background:var(--gold-dim);border-color:var(--gold);color:var(--gold-2)}
+  .mini svg{width:15px;height:15px}
+  .hint{font-size:12.5px;color:var(--muted);line-height:1.75}
+  .hint b{color:var(--text);font-weight:600}
+  .kbd{font-family:var(--fm);font-size:10.5px;background:rgba(255,255,255,.08);border:1px solid var(--line-2);padding:1px 6px;border-radius:5px;color:var(--gold-2)}
+
+  /* ---- Empty state ---- */
+  .empty{position:absolute;inset:0;display:grid;place-items:center;padding:20px;z-index:5}
+  .drop{
+    width:min(560px,94%);max-width:100%;border:1.5px dashed rgba(201,166,107,.4);border-radius:22px;
+    background:var(--glass);backdrop-filter:blur(10px);padding:54px 40px;text-align:center;transition:.18s;
+    box-shadow:var(--sh-pop);cursor:pointer;
+  }
+  .drop.over{border-color:var(--gold);background:rgba(201,166,107,.08);transform:scale(1.012)}
+  .drop .ic{width:64px;height:64px;margin:0 auto 20px;color:var(--gold);filter:drop-shadow(0 6px 18px rgba(201,166,107,.35))}
+  .drop h2{font-family:var(--fd);font-size:26px;font-weight:600;letter-spacing:.01em;margin-bottom:12px}
+  .drop p{color:var(--muted);font-size:14px;margin-bottom:24px;line-height:1.7}
+
+  /* ---- Status bar (kini memuat kontrol zoom) ---- */
+  .statusbar{
+    grid-row:3;display:flex;align-items:center;gap:14px;padding:0 14px;
+    background:var(--glass);border-top:1px solid var(--line);
+    font-family:var(--fm);font-size:11px;color:var(--muted);z-index:60;
+    min-width:0;overflow:hidden;
+  }
+  .sdot{width:6px;height:6px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px var(--ok)}
+  .sitem{display:flex;align-items:center;gap:7px;white-space:nowrap}
+  .credit{color:var(--gold);opacity:.85;letter-spacing:.06em}
+  .zoombar{display:flex;align-items:center;gap:2px;flex:none}
+  .zoombar button{width:30px;height:26px;display:grid;place-items:center;border-radius:7px;color:var(--muted);transition:.12s}
+  .zoombar button:hover{background:rgba(255,255,255,.08);color:var(--text)}
+  .zoombar button:disabled{opacity:.3;pointer-events:none}
+  .zoombar button svg{width:15px;height:15px}
+  #zoomVal{min-width:42px;text-align:center;color:var(--gold-2)}
+
+  /* ---- bilah format mengambang saat mengedit teks ---- */
+  .fmt-bar{
+    position:fixed;z-index:150;display:flex;align-items:center;gap:3px;padding:5px;
+    background:var(--glass-2);backdrop-filter:blur(14px);border:1px solid var(--line-2);
+    border-radius:11px;box-shadow:var(--sh-pop);
+    max-width:calc(100vw - 16px);flex-wrap:wrap;row-gap:4px;
+  }
+  .fmt-bar button{
+    height:32px;min-width:36px;padding:0 9px;border-radius:8px;color:var(--muted);font-size:13px;flex:none;
+    display:grid;place-items:center;transition:.12s;border:1px solid transparent;white-space:nowrap;
+  }
+  .fmt-bar button:hover{background:rgba(255,255,255,.08);color:var(--text)}
+  .fmt-bar button.on{background:var(--gold-dim);border-color:var(--gold);color:var(--gold-2)}
+  .fmt-bar button.addf{color:var(--gold-2);font-size:18px;font-weight:600;min-width:34px}
+  .fmt-bar .wgrp{display:flex;align-items:center;gap:3px;padding:0 2px}
+  .fmt-bar .wlab{font-size:11px;color:var(--muted);letter-spacing:.03em;padding:0 2px}
+  .fmt-bar .wt{min-width:30px;font-size:16px;font-weight:700}
+  .fmt-bar .fsep{width:1px;height:22px;background:var(--line-2);margin:0 3px;flex:none}
+  .fmt-bar .f-helv{font-family:Helvetica,Arial,sans-serif}
+  .fmt-bar .f-times{font-family:"Times New Roman",Times,serif}
+  .fmt-bar .f-courier{font-family:"Courier New",Courier,monospace}
+  .fmt-bar .sb{font-weight:800}
+  .fmt-bar .si{font-family:Georgia,serif}
+  .seg{display:flex;gap:7px;flex-wrap:wrap}
+
+  .toast{
+    position:fixed;bottom:56px;left:50%;transform:translateX(-50%) translateY(16px);
+    background:#05060a;border:1px solid var(--line-2);color:#fff;padding:12px 20px;border-radius:12px;
+    font-size:13px;box-shadow:var(--sh-pop);opacity:0;pointer-events:none;transition:.22s;z-index:200;
+    display:flex;align-items:center;gap:10px;max-width:90vw;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .toast .sp{width:14px;height:14px;border:2px solid rgba(255,255,255,.25);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite;flex:none}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* ============ RESPONSIF ============ */
+  @media (max-width:1060px){
+    .stage{grid-template-columns:78px minmax(0,1fr)}
+    #inspToggle{display:grid}
+    .inspector{
+      position:fixed;top:56px;right:0;bottom:40px;width:min(320px,88vw);z-index:70;
+      transform:translateX(105%);transition:transform .25s cubic-bezier(.2,.8,.2,1);
+      border-left:1px solid var(--line-2);box-shadow:-20px 0 60px rgba(0,0,0,.5);
+    }
+    .inspector.open{transform:translateX(0)}
+  }
+  @media (max-width:760px){
+    .topbar{padding:0 10px;gap:6px}
+    .brand{gap:6px}
+    .brand .mark{font-size:19px}
+    .brand .sub{display:none}
+    .btn .lbl{display:none}
+    .btn{height:34px;padding:0 11px;border-radius:9px}
+    .ibtn{width:34px;height:34px}
+    .stage{grid-template-columns:minmax(0,1fr)}
+    .rail-wrap{position:fixed;left:50%;bottom:52px;transform:translateX(-50%);z-index:65;width:auto;max-width:96vw}
+    .rail{flex-direction:row;padding:6px 8px;gap:2px;max-width:96vw;overflow-x:auto}
+    .tool{width:40px;height:40px;flex:none}
+    .tool[data-tip]::after{display:none}
+    .rail-sep{width:1px;height:24px;margin:0 3px;flex:none}
+    .doc{padding:40px 10px 160px;gap:44px}
+    .inspector{top:56px;bottom:40px}
+    #stCoord,#stTool{display:none}
+    .drop{padding:38px 22px}
+    .drop h2{font-size:21px}
+    .drop p{font-size:13px}
+    .drop .ic{width:54px;height:54px;margin-bottom:16px}
+    .page-head{opacity:.9}
+  }
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
 </head>
-<body>
+<body class="tool-select">
 
-    <div class="container">
-        <h2>Mobile Studio Pro v8</h2>
-        
-        <div class="canvas-container">
-            <canvas id="canvas" width="1280" height="720"></canvas>
-        </div>
+<header class="topbar">
+  <div class="brand"><span class="mark">Ink<b>line</b></span><span class="ver">v11</span><span class="sub">Editor PDF</span></div>
+  <div class="spacer"></div>
+  <div class="tb-group">
+    <button class="btn" id="openBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h6l2 3h8v11a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg>
+      <span class="lbl">Buka</span>
+    </button>
+    <button class="btn gold" id="exportBtn" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+      <span class="lbl">Ekspor</span>
+    </button>
+    <button class="ibtn" id="undoBtn" title="Urungkan (Ctrl+Z)" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-1"/></svg>
+    </button>
+    <button class="ibtn" id="inspToggle" title="Panel properti"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h10M4 18h7"/><circle cx="18" cy="12" r="2"/><circle cx="15" cy="18" r="2"/></svg></button>
+  </div>
+</header>
 
-        <div class="control-group">
-            <label>1. Pilih Musik</label>
-            <input type="file" id="audio-input" accept="audio/*">
-        </div>
+<div class="stage">
+  <div class="rail-wrap">
+    <nav class="rail" id="rail">
+      <button class="tool active" data-tool="select" data-tip="Pilih · klik teks untuk edit (V)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 3l7 17 2.5-6.5L20 11 4 3z"/></svg>
+      </button>
+      <button class="tool" data-tool="text" data-tip="Tambah / edit teks (T)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 6V4h14v2M12 4v16M9 20h6"/></svg>
+      </button>
+      <button class="tool" data-tool="pen" data-tip="Pena (P)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M15 4l5 5L9 20l-5 1 1-5L15 4z"/></svg>
+      </button>
+      <button class="tool" data-tool="highlight" data-tip="Stabilo (H)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 20h16M9 15l-3 3 4 1 8-8-4-4-8 8 3 4z"/></svg>
+      </button>
+      <button class="tool" data-tool="image" data-tip="Gambar / stempel (I)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 16l-5-5-7 7"/></svg>
+      </button>
+      <div class="rail-sep"></div>
+      <button class="tool" data-tool="erase" data-tip="Hapus objek (E)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 15l7-7 6 6-4 4H8l-4-3z"/><path d="M9 21h11"/></svg>
+      </button>
+    </nav>
+  </div>
 
-        <div class="btn-row">
-            <button id="preview-btn" class="btn" disabled>Play Preview</button>
-            <button id="action-btn" class="btn" disabled>Mulai Rekam Video</button>
-        </div>
-        <div class="progress-bar-container" id="progress-container"><div class="progress-bar" id="progress-bar"></div></div>
-        <div id="status-text" class="status-box">Silakan masukkan file musik untuk mengaktifkan studio.</div>
-
-        <div class="section-title">Instant Custom Profile Template</div>
-        <div class="control-group">
-            <select id="profile-template-select">
-                <option value="none">-- Pilih Template Profil Instan --</option>
-                <option value="cyber-rave">Cyber Rave (DJ Console + Rainbow + Tunnel)</option>
-                <option value="ambient-chill">Ambient Chill (Clean Grid + Emerald + Snow)</option>
-                <option value="retro-wave">Retro Wave (Twin Line + Ruby Red + Meteor)</option>
-            </select>
-        </div>
-
-        <div class="section-title">Konfigurasi Teks</div>
-        <div class="row">
-            <div class="control-group"><label>Artis</label><input type="text" id="artist-text" value="SRISP"></div>
-            <div class="control-group"><label>Judul</label><input type="text" id="title-text" value="Gravity of Light"></div>
-        </div>
-        <div class="row">
-            <div class="control-group">
-                <label>Gaya Font</label>
-                <select id="font-select">
-                    <option value="bold 60px 'Montserrat'">Montserrat</option>
-                    <option value="italic 60px 'Playfair Display'">Playfair</option>
-                    <option value="65px 'Bebas Neue'">Bebas Neue</option>
-                    <option value="bold 50px 'Courier New'">Courier New</option>
-                </select>
-            </div>
-            <div class="control-group"><label>Teks Kiri-Kanan</label><input type="range" id="text-x-slider" min="100" max="1180" value="640"></div>
-            <div class="control-group"><label>Teks Atas-Bawah</label><input type="range" id="text-y-slider" min="100" max="680" value="540"></div>
-        </div>
-
-        <div class="section-title">Konfigurasi Grafik Spektrum</div>
-        <div class="row">
-            <div class="control-group">
-                <label>Bentuk Spektrum</label>
-                <select id="template-select">
-                    <option value="bar">Classic Music Bars</option>
-                    <option value="double-bar">Mirror Twin Bars</option>
-                    <option value="updown">Up-Down Equalizer</option>
-                    <option value="wave">Waveform Glowing Line</option>
-                    <option value="spike">Spike Pulse Matrix</option>
-                    <option value="circle">Circular Aura Rhythm</option>
-                    <option value="split">Side-by-Side Split</option>
-                    <option value="circle-wave">Circular Wave Ring</option>
-                    <option value="block">Solid Block Staircase</option>
-                    <option value="dna">DNA Helix Pulse</option>
-                    <option value="bubble-spec">Floating Bubble Spectrum</option>
-                    <option value="radar">Radial Radar Line</option>
-                    <option value="starburst">Explosive Starburst</option>
-                </select>
-            </div>
-            <div class="control-group">
-                <label>Skema Warna (Transparan)</label>
-                <select id="color-select">
-                    <option value="cyan">Neon Cyan</option>
-                    <option value="red">Ruby Red</option>
-                    <option value="emerald">Lime Emerald</option>
-                    <option value="white">Crystal White</option>
-                    <option value="rainbow">Rainbow Pulse (Pelangi)</option>
-                    <option value="cyberpunk">Neon Cyberpunk (Pink-Blue)</option>
-                    <option value="sunset">Sunset Gold (Orange-Yellow)</option>
-                    <option value="purple">Deep Purple Aura</option>
-                </select>
-            </div>
-        </div>
-        <div class="row">
-            <div class="control-group"><label>Posisi Atas-Bawah</label><input type="range" id="spec-y-slider" min="50" max="670" value="340"></div>
-            <div class="control-group"><label>Lebar Bentangan</label><input type="range" id="spec-w-slider" min="400" max="1280" value="1280"></div>
-            <div class="control-group"><label>Sensitivitas Tinggi</label><input type="range" id="spec-h-slider" min="50" max="500" value="260"></div>
-        </div>
-
-        <div class="section-title">Latar Belakang & Efek Partikel</div>
-        <div class="row">
-            <div class="control-group">
-                <label>Jenis Efek</label>
-                <select id="particle-type">
-                    <option value="meteor">Meteor / Bintang Jatuh</option>
-                    <option value="bubbles">Bubbles / Gelembung Naik</option>
-                    <option value="snow">Snowflake / Salju Lembut</option>
-                    <option value="tunnel">Tunnel / Lorong Waktu 3D</option>
-                    <option value="chaos">Chaos Pulse / Denyut Acak</option>
-                    <option value="none">Matikan Efek Partikel</option>
-                </select>
-            </div>
-            <div class="control-group">
-                <label>Bentuk Visual Latar</label>
-                <select id="bg-select">
-                    <option value="dj">Line Art: DJ Console</option>
-                    <option value="grid">Line Art: Clean Grid</option>
-                    <option value="radial-glow">Line Art: Twin Radial Circle</option>
-                    <option value="custom">-- Foto Kustom --</option>
-                </select>
-            </div>
-        </div>
-        <div class="row">
-            <div class="control-group"><label>Jumlah</label><input type="range" id="particle-count" min="10" max="150" value="60"></div>
-            <div class="control-group"><label>Ukuran Max</label><input type="range" id="particle-size" min="2" max="15" value="5"></div>
-            <div class="control-group"><label>Kecepatan Dasar</label><input type="range" id="particle-speed" min="0.1" max="10" step="0.1" value="2"></div>
-        </div>
-        <input type="file" id="bg-custom-input" accept="image/*" style="display: none; margin-top: 5px;">
-        
-        <audio id="audio-player"></audio>
-        <div class="footer">Copyright SRISP 2026</div>
+  <main class="workspace" id="workspace">
+    <div class="doc" id="doc"></div>
+    <div class="empty" id="empty">
+      <div class="drop" id="drop">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5"/><path d="M4 15v3a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-3"/></svg>
+        <h2>Letakkan berkas PDF Anda</h2>
+        <p>Seret &amp; jatuhkan, atau ketuk untuk memilih file.<br>
+        Ketuk teks apa pun untuk <b style="color:var(--gold-2)">menyuntingnya langsung</b>.<br>
+        Cubit 2 jari untuk zoom. Semua lokal — <span class="kbd">tanpa unggah</span>.</p>
+        <button class="btn gold" id="openBtn2">Pilih file PDF</button>
+      </div>
     </div>
+  </main>
 
-    <script>
-        const canvas = document.getElementById('canvas'); const ctx = canvas.getContext('2d');
-        const audioInput = document.getElementById('audio-input'); const artistText = document.getElementById('artist-text');
-        const titleText = document.getElementById('title-text'); const fontSelect = document.getElementById('font-select');
-        const textXSlider = document.getElementById('text-x-slider'); const textYSlider = document.getElementById('text-y-slider');
-        const templateSelect = document.getElementById('template-select'); const colorSelect = document.getElementById('color-select');
-        const specYSlider = document.getElementById('spec-y-slider'); const specWSlider = document.getElementById('spec-w-slider');
-        const specHSlider = document.getElementById('spec-h-slider'); const bgSelect = document.getElementById('bg-select');
-        const bgCustomInput = document.getElementById('bg-custom-input'); const actionBtn = document.getElementById('action-btn');
-        const previewBtn = document.getElementById('preview-btn'); const statusText = document.getElementById('status-text');
-        const progressContainer = document.getElementById('progress-container'); const progressBar = document.getElementById('progress-bar');
-        const audioPlayer = document.getElementById('audio-player'); const profileTemplateSelect = document.getElementById('profile-template-select');
-        const particleType = document.getElementById('particle-type'); const particleCount = document.getElementById('particle-count');
-        const particleSize = document.getElementById('particle-size'); const particleSpeed = document.getElementById('particle-speed');
+  <aside class="inspector" id="inspector">
+    <div class="isec">
+      <div class="ititle" id="propTitle">Pilih</div>
+      <div id="propBody"><p class="hint">Ketuk teks di dokumen untuk menyuntingnya langsung, atau ambil alat dari bilah.</p></div>
+    </div>
+    <div class="isec">
+      <div class="ititle">Dokumen</div>
+      <div class="meta" id="docMeta">
+        <span class="fname">Belum ada file</span>
+        <div>Versi aplikasi: <b style="color:var(--gold-2)">v11 · SRISP 2026</b></div>
+        <div>Halaman: <b id="mPages">—</b></div>
+        <div>Teks dapat diedit: <b id="mText">—</b></div>
+        <div>Anotasi &amp; suntingan: <b id="mAnno">0</b></div>
+      </div>
+      <button class="mini" id="fitBtn2" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4"/></svg>
+        Paskan lebar layar
+      </button>
+      <button class="mini" id="addBlank" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3v5h5M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-5z"/><path d="M12 12v5M9.5 14.5h5"/></svg>
+        Tambah halaman kosong
+      </button>
+    </div>
+    <div class="isec">
+      <div class="ititle">Petunjuk</div>
+      <p class="hint">
+        <b>Ketuk teks PDF</b> → langsung sunting; font, tebal &amp; miring muncul di sini saat teks terpilih.<br>
+        <b>Zoom</b>: cubit 2 jari, atau tombol <span class="kbd">− / +</span> di bar bawah.<br>
+        <span class="kbd">Del</span> hapus · <span class="kbd">Esc</span> selesai · <span class="kbd">Ctrl+Z</span> urungkan.
+      </p>
+    </div>
+  </aside>
+</div>
 
-        let audioCtx = null, analyser = null, source = null, mediaRecorder = null, recordedChunks = [], animationFrameId = null, isRecording = false, isPreviewing = false, uploadedBgImg = null, wakeLock = null, hueCounter = 0;
-        
-        const particles = [];
-        function initParticles() {
-            particles.length = 0;
-            const count = parseInt(particleCount.value);
-            const maxSize = parseInt(particleSize.value);
-            for(let i=0; i<count; i++) {
-                particles.push({
-                    x: Math.random() * canvas.width,
-                    y: Math.random() * canvas.height,
-                    z: Math.random() * canvas.width,
-                    speedFactor: Math.random() * 0.7 + 0.3,
-                    size: Math.random() * (maxSize - 1) + 1,
-                    alpha: Math.random() * 0.5 + 0.3,
-                    angle: Math.random() * Math.PI * 2
-                });
-            }
-        }
-        initParticles();
-        [particleCount, particleSize, particleSpeed].forEach(el => el.addEventListener('input', initParticles));
-        particleType.addEventListener('change', initParticles);
+<footer class="statusbar">
+  <div class="sitem"><span class="sdot"></span><span id="stStatus">Siap</span></div>
+  <div class="sitem" id="stTool">Alat: Pilih</div>
+  <div class="spacer" style="flex:1"></div>
+  <div class="zoombar">
+    <button id="zoomOut" title="Perkecil" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg></button>
+    <span id="zoomVal">100%</span>
+    <button id="zoomIn" title="Perbesar" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></button>
+  </div>
+  <div class="sitem credit">© SRISP 2026</div>
+</footer>
 
-        profileTemplateSelect.addEventListener('change', function() {
-            if (this.value === 'cyber-rave') {
-                bgSelect.value = 'dj'; templateSelect.value = 'starburst'; colorSelect.value = 'rainbow'; particleType.value = 'tunnel'; particleSpeed.value = '4';
-            } else if (this.value === 'ambient-chill') {
-                bgSelect.value = 'grid'; templateSelect.value = 'bubble-spec'; colorSelect.value = 'emerald'; particleType.value = 'snow'; particleSpeed.value = '0.5';
-            } else if (this.value === 'retro-wave') {
-                bgSelect.value = 'radial-glow'; templateSelect.value = 'double-bar'; colorSelect.value = 'cyberpunk'; particleType.value = 'meteor'; particleSpeed.value = '2';
-            }
-            bgSelect.dispatchEvent(new Event('change'));
-            initParticles(); drawPreview();
-        });
+<input type="file" id="fileInput" accept="application/pdf" hidden>
+<input type="file" id="imgInput" accept="image/png,image/jpeg" hidden>
+<input type="file" id="fontInput" accept=".ttf,.otf,font/ttf,font/otf,application/font-sfnt" hidden>
+<div class="toast" id="toast"></div>
 
-        bgSelect.addEventListener('change', function() {
-            bgCustomInput.style.display = (this.value === 'custom') ? 'block' : 'none';
-            if(this.value !== 'custom') { uploadedBgImg = null; drawPreview(); }
-        });
+<script>
+/* ================================================================
+   Inkline v11 — © SRISP 2026
+   Baru di v9: pencocokan font OTOMATIS dari pustaka online. Nama font
+   asli dideteksi dari PDF, lalu padanan metric-compatible-nya ditarik
+   langsung dari @fontsource (Calibri→Carlito, Cambria→Caladea,
+   Georgia→Gelasio) untuk tampilan + ditanam saat ekspor. Tetap ada
+   font dasar (Helvetica/Times/Courier) & muat font manual (.ttf/.otf).
+   ================================================================ */
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-        bgCustomInput.addEventListener('change', function() {
-            if (this.files.length === 0) return;
-            const reader = new FileReader();
-            reader.onload = e => { uploadedBgImg = new Image(); uploadedBgImg.src = e.target.result; uploadedBgImg.onload = drawPreview; };
-            reader.readAsDataURL(this.files[0]);
-        });
+const PALETTE=['#000000','#4C6EF5','#C0392B','#1E8449','#B7791F','#FFFFFF'];
+const HL=['#FFD43B','#63E6BE','#FF8787','#74C0FC','#B197FC'];
+const A4={w:595.28,h:841.89};
+const DPR=Math.min(2,window.devicePixelRatio||1);
 
-        async function requestWakeLock() {
-            try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch (err) {}
-        }
-        function releaseWakeLock() { if (wakeLock) { wakeLock.release(); wakeLock = null; } }
+const FONT_CSS={helv:'Helvetica,Arial,sans-serif',times:'"Times New Roman",Times,serif',courier:'"Courier New",Courier,monospace'};
+const FONT_LABEL={helv:'Sans',times:'Serif',courier:'Mono'};
+function fontCssOf(a){
+  if(typeof a.font==='string'&&a.font.startsWith('custom:')){
+    const cf=state.customFonts.find(c=>c.id===a.font.slice(7));
+    if(cf)return `"${cf.family}",sans-serif`;
+  }
+  return FONT_CSS[a.font]||FONT_CSS.helv;
+}
+function fontOptions(){
+  const base=[{key:'helv',label:'Sans',cls:'f-helv'},{key:'times',label:'Serif',cls:'f-times'},{key:'courier',label:'Mono',cls:'f-courier'}];
+  // hanya tampilkan font yang dimuat manual; font hasil pencocokan otomatis (auto) disembunyikan
+  const cust=state.customFonts.filter(c=>!c.auto).map(c=>({key:'custom:'+c.id,label:c.label,cls:'',family:c.family}));
+  return base.concat(cust);
+}
 
-        function drawVectorBackground() {
-            ctx.fillStyle = "#04040a"; ctx.fillRect(0, 0, canvas.width, canvas.height);
-            const style = bgSelect.value;
-            
-            if (style === 'dj') {
-                ctx.strokeStyle = "rgba(0, 240, 255, 0.15)"; ctx.lineWidth = 4;
-                ctx.beginPath(); ctx.arc(280, 360, 150, 0, Math.PI * 2); ctx.stroke();
-                ctx.beginPath(); ctx.arc(280, 360, 60, 0, Math.PI * 2); ctx.stroke();
-                ctx.strokeStyle = "rgba(255, 0, 85, 0.15)";
-                ctx.beginPath(); ctx.arc(1000, 360, 150, 0, Math.PI * 2); ctx.stroke();
-                ctx.beginPath(); ctx.arc(1000, 360, 60, 0, Math.PI * 2); ctx.stroke();
-                ctx.fillStyle = "rgba(15, 15, 30, 0.4)"; ctx.fillRect(520, 120, 240, 480);
-                ctx.strokeStyle = "rgba(45, 45, 90, 0.3)"; ctx.strokeRect(520, 120, 240, 480);
-            } else if (style === 'grid') {
-                ctx.strokeStyle = "rgba(255,255,255,0.04)"; ctx.lineWidth = 1;
-                for(let i=0; i<canvas.width; i+=40) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,canvas.height); ctx.stroke(); }
-                for(let j=0; j<canvas.height; j+=40) { ctx.beginPath(); ctx.moveTo(0,j); ctx.lineTo(canvas.width,j); ctx.stroke(); }
-            } else if (style === 'radial-glow') {
-                ctx.strokeStyle = "rgba(0, 240, 255, 0.1)"; ctx.lineWidth = 2;
-                ctx.beginPath(); ctx.arc(640, 360, 250, 0, Math.PI * 2); ctx.stroke();
-                ctx.strokeStyle = "rgba(255, 0, 85, 0.1)";
-                ctx.beginPath(); ctx.arc(640, 360, 350, 0, Math.PI * 2); ctx.stroke();
-            }
-        }
+let uid=1; const nid=()=>'x'+(uid++);
+const $=s=>document.querySelector(s);
+const workspace=$('#workspace'), doc=$('#doc'), empty=$('#empty');
 
-        function getColorStyle(intensity, index = 0) {
-            hueCounter += 0.02;
-            const choice = colorSelect.value;
-            if (choice === 'cyan') return "rgba(0,240,255,0.65)";
-            if (choice === 'red') return "rgba(255,0,85,0.65)";
-            if (choice === 'emerald') return "rgba(0,255,102,0.65)";
-            if (choice === 'white') return "rgba(255,255,255,0.55)";
-            if (choice === 'rainbow') return `hsla(${(index * 4 + hueCounter * 10) % 360}, 100%, 60%, 0.7)`;
-            if (choice === 'cyberpunk') return index % 2 === 0 ? "rgba(255,0,128,0.7)" : "rgba(0,128,255,0.7)";
-            if (choice === 'sunset') return `rgba(255, ${100 + Math.floor(intensity * 155)}, 0, 0.7)`;
-            if (choice === 'purple') return "rgba(160,32,240,0.65)";
-            return "rgba(0,240,255,0.65)";
-        }
+const state={
+  pdfjsDoc:null, originalBytes:null, fileName:'',
+  pages:[], textItems:new Map(), textStyles:new Map(), annotations:[],
+  scale:1.2, tool:'select', selected:null,
+  color:'#000000', penW:2.5, hlColor:'#FFD43B', hlW:14, fontSize:16,
+  font:'helv', bold:false, italic:false,
+  pendingImage:null, history:[], textCount:0, customFonts:[],
+};
+const pageEls={};
+let suppressClick=false;
 
-        function updateAndDrawParticles(audioIntensity) {
-            const type = particleType.value;
-            if (type === 'none') return;
+/* ---------- util ---------- */
+const hex2rgb=h=>{h=h.replace('#','');return{r:parseInt(h.slice(0,2),16)/255,g:parseInt(h.slice(2,4),16)/255,b:parseInt(h.slice(4,6),16)/255};};
+const rgb2hex=(r,g,b)=>'#'+[r,g,b].map(v=>v.toString(16).padStart(2,'0')).join('');
+const pageById=id=>state.pages.find(p=>p.id===id);
+const pageIdx=id=>state.pages.findIndex(p=>p.id===id);
+const annosOf=id=>state.annotations.filter(a=>a.pageId===id);
+const latin1=s=>(s||'').replace(/[\u2018\u2019\u02BC]/g,"'").replace(/[\u201C\u201D]/g,'"')
+  .replace(/[\u2013\u2014]/g,'-').replace(/\u2026/g,'...').replace(/\u00A0/g,' ')
+  .replace(/[^\x00-\xFF]/g,'');
+const setZoomUI=scale=>{$('#zoomVal').textContent=Math.round(scale*100)+'%';};
 
-            const sliderSpeed = parseFloat(particleSpeed.value);
-            const maxSize = parseInt(particleSize.value);
+function toast(msg,spin=false){
+  const t=$('#toast'); t.innerHTML=(spin?'<span class="sp"></span>':'')+msg; t.classList.add('show');
+  clearTimeout(t._t); if(!spin)t._t=setTimeout(()=>t.classList.remove('show'),2400);
+}
+const hideToast=()=>$('#toast').classList.remove('show');
+const setStatus=t=>$('#stStatus').textContent=t;
 
-            particles.forEach(p => {
-                let currentSpeed = (sliderSpeed * p.speedFactor) + (audioIntensity * 20);
-                let currentSize = p.size + (audioIntensity * (maxSize * 1.2));
-                let drawX = p.x; let drawY = p.y;
-                let finalAlpha = Math.min(1, p.alpha + audioIntensity);
+/* ---------- history ---------- */
+function snapshot(){
+  state.history.push(JSON.stringify({pages:state.pages,annotations:state.annotations,uid}));
+  if(state.history.length>30)state.history.shift();
+  $('#undoBtn').disabled=false;
+}
+async function undo(){
+  if(!state.history.length)return;
+  const s=JSON.parse(state.history.pop());
+  state.pages=s.pages; state.annotations=s.annotations; uid=s.uid; state.selected=null;
+  $('#undoBtn').disabled=!state.history.length;
+  await renderDocument(); updateMeta(); renderInspector();
+}
 
-                if (type === 'meteor') {
-                    p.y += currentSpeed; if(p.y > canvas.height) { p.y = 0; p.x = Math.random() * canvas.width; }
-                } else if (type === 'bubbles') {
-                    p.y -= currentSpeed * 0.7; if(p.y < 0) { p.y = canvas.height; p.x = Math.random() * canvas.width; }
-                } else if (type === 'snow') {
-                    p.y += currentSpeed * 0.4; p.angle += 0.02; drawX += Math.sin(p.angle) * 1.5;
-                    if(p.y > canvas.height) { p.y = 0; p.x = Math.random() * canvas.width; }
-                } else if (type === 'tunnel') {
-                    p.z -= currentSpeed * 2;
-                    if (p.z <= 0) { p.z = canvas.width; p.x = Math.random() * canvas.width - canvas.width / 2; p.y = Math.random() * canvas.height - canvas.height / 2; }
-                    drawX = (p.x / p.z) * canvas.width + canvas.width / 2; drawY = (p.y / p.z) * canvas.height + canvas.height / 2;
-                    currentSize = (maxSize * (canvas.width / p.z)) * 0.15;
-                    if(drawX < 0 || drawX > canvas.width || drawY < 0 || drawY > canvas.height) p.z = canvas.width;
-                } else if (type === 'chaos') {
-                    finalAlpha = Math.min(1, (p.alpha * 0.2) + (audioIntensity * 1.1));
-                    currentSize = p.size + (audioIntensity * maxSize * 3);
-                }
+/* ---------- load ---------- */
+async function loadPDF(buf,name){
+  toast('Memuat dokumen…',true);
+  try{
+    state.originalBytes=new Uint8Array(buf.slice(0));
+    state.fileName=name||'dokumen.pdf';
+    state.pdfjsDoc=await pdfjsLib.getDocument({data:new Uint8Array(buf.slice(0))}).promise;
+    state.pages=[];state.annotations=[];state.history=[];state.selected=null;
+    state.textItems.clear();state.textStyles.clear();state.textCount=0;
 
-                ctx.beginPath(); ctx.arc(drawX, drawY, Math.max(0.5, currentSize), 0, Math.PI * 2);
-                ctx.fillStyle = `rgba(255, 255, 255, ${finalAlpha})`; ctx.fill();
-            });
-        }
+    for(let i=0;i<state.pdfjsDoc.numPages;i++){
+      const pg=await state.pdfjsDoc.getPage(i+1);
+      const vp=pg.getViewport({scale:1});
+      state.pages.push({id:nid(),originalIndex:i,rotation:0,wpt:vp.width,hpt:vp.height});
+      const tc=await pg.getTextContent();
+      const items=[];
+      for(const it of tc.items){
+        if(!it.str||!it.str.trim())continue;
+        const tr=pdfjsLib.Util.transform(vp.transform,it.transform);
+        if(Math.abs(Math.atan2(tr[1],tr[0]))>0.02)continue;
+        const fh=Math.hypot(tr[2],tr[3])||10;const bl=tr[5];
+        items.push({str:it.str,x:tr[4],bl,top:bl-fh*0.86,w:it.width||fh*it.str.length*0.5,h:fh,size:fh,fontName:it.fontName});
+      }
+      state.textItems.set(i,items);state.textStyles.set(i,tc.styles||{});state.textCount+=items.length;
+    }
+    empty.style.display='none';
+    ['exportBtn','zoomIn','zoomOut','fitBtn2','addBlank'].forEach(id=>$('#'+id).disabled=false);
+    $('#undoBtn').disabled=true;
+    fitWidth(false);
+    await renderDocument(); updateMeta();
+    hideToast(); setStatus('Dokumen dimuat');
+    if(state.textCount>0) toast(`${state.textCount} blok teks siap disunting — ketuk saja teksnya.`);
+    else toast('PDF ini tampaknya hasil scan (tanpa teks). Gunakan alat Teks untuk menimpa.');
+  }catch(e){console.error(e);hideToast();toast('Gagal membaca PDF. Pastikan file valid & tidak terkunci.');}
+}
 
-        function drawPreview() {
-            if (isPreviewing || isRecording) return;
-            if (bgSelect.value === 'custom' && uploadedBgImg) {
-                ctx.drawImage(uploadedBgImg, 0, 0, canvas.width, canvas.height);
-                ctx.fillStyle = "rgba(5, 5, 12, 0.5)"; ctx.fillRect(0, 0, canvas.width, canvas.height);
-            } else { drawVectorBackground(); }
-            updateAndDrawParticles(0.01);
-            drawTextElements();
-        }
+/* ---------- render dokumen ---------- */
+let renderJob=0;
+async function renderDocument(){
+  const job=++renderJob;
+  const frag=document.createDocumentFragment();
+  const fresh={};
+  for(const p of state.pages){
+    const slot=await buildPage(p,fresh);
+    if(job!==renderJob)return;
+    frag.appendChild(slot);
+  }
+  if(job!==renderJob)return;
+  for(const k in pageEls)delete pageEls[k];
+  Object.assign(pageEls,fresh);
+  doc.replaceChildren(frag);
+  setZoomUI(state.scale);
+}
 
-        function drawTextElements() {
-            const textX = parseInt(textXSlider.value); const textY = parseInt(textYSlider.value);
-            ctx.textAlign = "center"; ctx.fillStyle = "#ffffff";
-            ctx.font = fontSelect.value; ctx.fillText(artistText.value, textX, textY);
-            ctx.font = "35px sans-serif"; ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
-            ctx.fillText(titleText.value, textX, textY + 50);
-        }
+async function buildPage(p,store){
+  const w=p.wpt*state.scale,h=p.hpt*state.scale;
+  const rot=((p.rotation%360)+360)%360, swap=(rot===90||rot===270);
 
-        [artistText, titleText, fontSelect, textXSlider, textYSlider, templateSelect, colorSelect, specYSlider, specWSlider, specHSlider, bgSelect, particleType, particleSpeed].forEach(el => {
-            el.addEventListener('input', drawPreview); el.addEventListener('change', drawPreview);
-        });
+  const slot=document.createElement('div');slot.className='page-slot';
+  slot.style.width=(swap?h:w)+'px';slot.style.height=(swap?w:h)+'px';
 
-        audioInput.addEventListener('change', function() {
-            if (this.files.length === 0) return;
-            audioPlayer.src = URL.createObjectURL(this.files[0]);
-            statusText.innerText = "Musik dimuat! Sesuaikan parameter atau langsung rekam.";
-            actionBtn.disabled = false; previewBtn.disabled = false; drawPreview();
-        });
+  const page=document.createElement('div');page.className='page';
+  page.style.width=w+'px';page.style.height=h+'px';
+  page.style.left=((swap?h:w)-w)/2+'px';page.style.top=((swap?w:h)-h)/2+'px';
+  page.style.transform=`rotate(${rot}deg)`;
+  page._pid=p.id;page._rot=rot;page._w=w;page._h=h;
 
-        function setupAudioNodes() {
-            if (!audioCtx) {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                analyser = audioCtx.createAnalyser(); analyser.fftSize = 256;
-                source = audioCtx.createMediaElementSource(audioPlayer);
-                source.connect(analyser); analyser.connect(audioCtx.destination);
-            }
-        }
+  const base=document.createElement('canvas');
+  base.width=Math.round(w*DPR);base.height=Math.round(h*DPR);
+  base.style.width=w+'px';base.style.height=h+'px';
+  const bctx=base.getContext('2d');
+  bctx.fillStyle='#fff';bctx.fillRect(0,0,base.width,base.height);
+  if(p.originalIndex>=0){
+    const pg=await state.pdfjsDoc.getPage(p.originalIndex+1);
+    const vp=pg.getViewport({scale:state.scale*DPR});
+    await pg.render({canvasContext:bctx,viewport:vp}).promise;
+  }
+  page.appendChild(base);
 
-        function renderLoop() {
-            if (!isPreviewing && !isRecording) return;
-            animationFrameId = requestAnimationFrame(renderLoop);
-            
-            const bufferLength = analyser.frequencyBinCount;
-            const dataArray = new Uint8Array(bufferLength);
-            
-            if (['wave','circle-wave','radar'].includes(templateSelect.value)) { analyser.getByteTimeDomainData(dataArray); } 
-            else { analyser.getByteFrequencyData(dataArray); }
+  const dcv=document.createElement('canvas');
+  dcv.width=Math.round(w*DPR);dcv.height=Math.round(h*DPR);
+  dcv.style.width=w+'px';dcv.style.height=h+'px';
+  dcv.style.pointerEvents='none';
+  page.appendChild(dcv);
 
-            let sum = 0; for(let i=0; i<40; i++) sum += dataArray[i];
-            let audioIntensity = (sum / 40) / 255;
+  const tlayer=document.createElement('div');tlayer.className='text-layer';page.appendChild(tlayer);
+  const alayer=document.createElement('div');alayer.className='anno-layer';page.appendChild(alayer);
 
-            if (bgSelect.value === 'custom' && uploadedBgImg) {
-                ctx.drawImage(uploadedBgImg, 0, 0, canvas.width, canvas.height);
-                ctx.fillStyle = "rgba(5, 5, 12, 0.5)"; ctx.fillRect(0, 0, canvas.width, canvas.height);
-            } else { drawVectorBackground(); }
+  slot.appendChild(page);
+  slot.appendChild(buildHead(p));
+  const els={slot,page,base,dcv,tlayer,alayer};
+  store[p.id]=els;
+  paintPage(p,els);
+  attachEvents(page,p,dcv);
+  return slot;
+}
 
-            updateAndDrawParticles(audioIntensity);
+function refreshPage(pid){const p=pageById(pid),els=pageEls[pid];if(!p||!els)return;paintPage(p,els);}
+function paintPage(p,els){drawOverlay(els.dcv,p);buildTextLayer(els.tlayer,p);buildAnnoLayer(els.alayer,p);}
 
-            const specY = parseInt(specYSlider.value); const specW = parseInt(specWSlider.value);
-            const specH = parseInt(specHSlider.value); const startX = (canvas.width - specW) / 2;
-            const style = templateSelect.value;
+function drawOverlay(cv,p){
+  const ctx=cv.getContext('2d');
+  ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,cv.width,cv.height);
+  ctx.setTransform(DPR*state.scale,0,0,DPR*state.scale,0,0);
+  annosOf(p.id).filter(a=>a.type==='edit').forEach(a=>{
+    ctx.fillStyle=a.cover||'#ffffff';ctx.fillRect(a.x-1.5,a.top-2,a.w+3,a.h+4);
+  });
+  ctx.lineCap='round';ctx.lineJoin='round';
+  annosOf(p.id).filter(a=>a.type==='pen'||a.type==='highlight').forEach(a=>{
+    if(!a.points.length)return;
+    ctx.save();ctx.globalAlpha=a.type==='highlight'?0.4:1;
+    ctx.strokeStyle=a.color;ctx.lineWidth=a.width;ctx.beginPath();
+    a.points.forEach((q,i)=>i?ctx.lineTo(q.x,q.y):ctx.moveTo(q.x,q.y));
+    if(a.points.length===1)ctx.lineTo(a.points[0].x+.1,a.points[0].y+.1);
+    ctx.stroke();ctx.restore();
+  });
+}
 
-            ctx.shadowBlur = colorSelect.value === 'rainbow' ? 0 : 12;
+function buildTextLayer(layer,p){
+  layer.innerHTML='';
+  if(p.originalIndex<0)return;
+  const items=state.textItems.get(p.originalIndex)||[];
+  const edited=new Set(annosOf(p.id).filter(a=>a.type==='edit').map(a=>a.item));
+  items.forEach((it,idx)=>{
+    if(edited.has(idx))return;
+    const s=document.createElement('div');
+    s.className='native-text';s.dataset.idx=idx;
+    s.style.left=(it.x*state.scale)+'px';s.style.top=(it.top*state.scale)+'px';
+    s.style.width=Math.max(4,it.w*state.scale)+'px';s.style.height=(it.h*state.scale)+'px';
+    s.style.fontSize=(it.size*state.scale)+'px';
+    s.title='Ketuk untuk menyunting teks ini';
+    layer.appendChild(s);
+  });
+}
 
-            if (style === 'bar') {
-                const barWidth = (specW / 50);
-                for (let i = 0; i < 50; i++) {
-                    ctx.fillStyle = getColorStyle(dataArray[i]/255, i);
-                    let h = (dataArray[i] / 255) * specH;
-                    ctx.fillRect(startX + (i * barWidth), specY - h, barWidth - 3, h + 2);
-                }
-            } else if (style === 'double-bar') {
-                const barWidth = (specW / 50);
-                for (let i = 0; i < 50; i++) {
-                    ctx.fillStyle = getColorStyle(dataArray[i]/255, i);
-                    let h = (dataArray[i] / 255) * (specH / 2);
-                    ctx.fillRect(startX + (i * barWidth), specY - h, barWidth - 3, h);
-                    ctx.fillRect(startX + (i * barWidth), specY, barWidth - 3, h);
-                }
-            } else if (style === 'updown') {
-                const barWidth = (specW / 40);
-                for (let i = 0; i < 40; i++) {
-                    ctx.fillStyle = getColorStyle(dataArray[i]/255, i);
-                    let h = (dataArray[i] / 255) * specH;
-                    ctx.fillRect(startX + (i * barWidth), specY - (h/2), barWidth - 3, h);
-                }
-            } else if (style === 'wave') {
-                ctx.beginPath(); const sliceWidth = specW / bufferLength; let x = startX;
-                ctx.strokeStyle = getColorStyle(audioIntensity, 0); ctx.lineWidth = 5;
-                for (let i = 0; i < bufferLength; i++) {
-                    let v = dataArray[i] / 128.0; let y = specY + (v - 1.0) * specH;
-                    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-                    x += sliceWidth;
-                }
-                ctx.stroke();
-            } else if (style === 'spike') {
-                const step = specW / 40; ctx.lineWidth = 4;
-                for(let i=0; i<40; i++) {
-                    ctx.strokeStyle = getColorStyle(dataArray[i]/255, i);
-                    let h = (dataArray[i] / 255) * specH;
-                    ctx.beginPath(); ctx.moveTo(startX + (i * step), specY); ctx.lineTo(startX + (i * step), specY - h); ctx.stroke();
-                }
-            } else if (style === 'circle' || style === 'circle-wave') {
-                ctx.beginPath(); const centerX = startX + (specW / 2); const baseRadius = specH / 3.5;
-                ctx.strokeStyle = getColorStyle(audioIntensity, 0); ctx.lineWidth = 5;
-                for (let i = 0; i < 60; i++) {
-                    let angle = (i / 60) * Math.PI * 2;
-                    let r = baseRadius + ((dataArray[i % 30] / 255) * specH * 0.4);
-                    let x = centerX + Math.cos(angle) * r; let y = specY + Math.sin(angle) * r;
-                    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-                }
-                ctx.closePath(); ctx.stroke();
-            } else if (style === 'split') {
-                const barWidth = (specW / 2) / 25; const centerX = startX + (specW / 2);
-                for(let i=0; i<25; i++) {
-                    ctx.fillStyle = getColorStyle(dataArray[i]/255, i);
-                    let h = (dataArray[i] / 255) * specH;
-                    ctx.fillRect(centerX + (i * barWidth), specY - h, barWidth - 3, h + 2);
-                    ctx.fillRect(centerX - (i * barWidth) - barWidth, specY - h, barWidth - 3, h + 2);
-                }
-            } else if (style === 'block') {
-                const barWidth = (specW / 35);
-                for (let i = 0; i < 35; i++) {
-                    ctx.fillStyle = getColorStyle(dataArray[i]/255, i);
-                    let blocks = Math.floor((dataArray[i] / 255) * 8);
-                    for(let b=0; b<blocks; b++) { ctx.fillRect(startX + (i * barWidth), specY - (b * (specH / 10)), barWidth - 3, (specH / 14)); }
-                }
-            } else if (style === 'dna') {
-                const barWidth = (specW / 40);
-                for (let i = 0; i < 40; i++) {
-                    ctx.fillStyle = getColorStyle(dataArray[i]/255, i);
-                    let h = (dataArray[i] / 255) * (specH / 2);
-                    ctx.beginPath(); ctx.arc(startX + (i * barWidth), specY - h, 5, 0, Math.PI * 2); ctx.fill();
-                    ctx.beginPath(); ctx.arc(startX + (i * barWidth), specY + h, 5, 0, Math.PI * 2); ctx.fill();
-                }
-            } else if (style === 'bubble-spec') {
-                for (let i = 0; i < 30; i++) {
-                    if (dataArray[i] > 100) {
-                        ctx.fillStyle = getColorStyle(dataArray[i]/255, i);
-                        let r = (dataArray[i] / 255) * 15;
-                        ctx.beginPath(); ctx.arc(startX + (i * (specW/30)), specY - (dataArray[i] * 0.8), r, 0, Math.PI * 2); ctx.fill();
-                    }
-                }
-            } else if (style === 'radar') {
-                const centerX = startX + (specW / 2); ctx.lineWidth = 3;
-                for (let i = 0; i < 360; i += 6) {
-                    ctx.strokeStyle = getColorStyle(audioIntensity, i);
-                    let angle = (i * Math.PI) / 180;
-                    let val = dataArray[Math.floor(i % bufferLength)] / 255;
-                    ctx.beginPath(); ctx.moveTo(centerX, specY);
-                    ctx.lineTo(centerX + Math.cos(angle) * (specH * val), specY + Math.sin(angle) * (specH * val)); ctx.stroke();
-                }
-            } else if (style === 'starburst') {
-                const centerX = startX + (specW / 2);
-                for(let i=0; i<60; i++) {
-                    ctx.fillStyle = getColorStyle(dataArray[i]/255, i);
-                    let angle = (i / 60) * Math.PI * 2;
-                    let dist = 50 + (dataArray[i]/255) * specH;
-                    ctx.beginPath(); ctx.arc(centerX + Math.cos(angle)*dist, specY + Math.sin(angle)*dist, 4, 0, Math.PI*2); ctx.fill();
-                }
-            }
+function applyFontCss(el,a){
+  const base=fontCssOf(a);
+  // pakai font tertanam asli lebih dulu, lalu font pengganti sebagai fallback
+  el.style.fontFamily = a.dispFamily ? `"${a.dispFamily}", ${base}` : base;
+  // ketebalan & miring SELALU diterapkan (agar bold tetap muncul walau fallback)
+  el.style.fontWeight = a.bold?'700':'400';
+  el.style.fontStyle  = a.italic?'italic':'normal';
+  const w=(a.weight||0)*state.scale;
+  el.style.webkitTextStroke = w>0 ? (w.toFixed(2)+'px '+(a.color||'#111827')) : '';
+}
 
-            ctx.shadowBlur = 0; drawTextElements();
+function buildAnnoLayer(layer,p){
+  layer.innerHTML='';
+  annosOf(p.id).forEach(a=>{
+    if(a.type==='pen'||a.type==='highlight')return;
+    const el=document.createElement('div');el.className='anno '+a.type;el.dataset.id=a.id;
+    if(a.id===state.selected)el.classList.add('selected');
+    if(a.type==='text'){
+      el.style.left=(a.x*state.scale)+'px';el.style.top=(a.y*state.scale)+'px';
+      applyFontCss(el,a);el.style.fontSize=(a.size*state.scale)+'px';el.style.color=a.color;el.innerText=a.text;
+    }else if(a.type==='edit'){
+      el.style.left=(a.x*state.scale)+'px';el.style.top=((a.bl-a.size*0.86)*state.scale)+'px';
+      applyFontCss(el,a);el.style.fontSize=(a.size*state.scale)+'px';el.style.color=a.color;
+      el.style.background=a.cover||'#fff';el.style.minWidth=(a.w*state.scale)+'px';el.style.minHeight=(a.h*state.scale)+'px';
+      el.innerText=a.text;
+    }else if(a.type==='image'){
+      el.style.left=(a.x*state.scale)+'px';el.style.top=(a.y*state.scale)+'px';
+      el.style.width=(a.w*state.scale)+'px';el.style.height=(a.h*state.scale)+'px';
+      const img=document.createElement('img');img.src=a.data;el.appendChild(img);
+      const rz=document.createElement('div');rz.className='rz';el.appendChild(rz);
+    }
+    layer.appendChild(el);
+  });
+}
 
-            if (isRecording && audioPlayer.duration) {
-                const pct = (audioPlayer.currentTime / audioPlayer.duration) * 100;
-                progressBar.style.width = pct + "%";
-                statusText.innerText = `Sedang Merekam Video: ${Math.floor(pct)}% (${Math.floor(audioPlayer.currentTime)}s / ${Math.floor(audioPlayer.duration)}s) [Layar Terkunci Hidup]`;
-            }
-        }
+/* ---------- header halaman ---------- */
+function buildHead(p){
+  const head=document.createElement('div');head.className='page-head';
+  head.innerHTML='<span class="plab"></span>';
+  const relabel=()=>{const i=pageIdx(p.id);head.querySelector('.plab').textContent=
+    (p.originalIndex>=0?`Hal. ${i+1}`:`Hal. ${i+1} · kosong`);};
+  const mk=(tip,dgr,svg,fn)=>{const b=document.createElement('button');if(dgr)b.className='dgr';
+    b.title=tip;b.innerHTML=svg;b.onclick=e=>{e.stopPropagation();fn();};head.appendChild(b);};
+  mk('Putar 90°',0,'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v5h-5"/></svg>',
+    async()=>{snapshot();p.rotation=(p.rotation+90)%360;await renderDocument();});
+  mk('Duplikat',0,'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>',
+    async()=>{snapshot();const i=pageIdx(p.id);
+      const np={id:nid(),originalIndex:p.originalIndex,rotation:p.rotation,wpt:p.wpt,hpt:p.hpt};
+      state.pages.splice(i+1,0,np);
+      annosOf(p.id).forEach(a=>{const c=JSON.parse(JSON.stringify(a));c.id=nid();c.pageId=np.id;state.annotations.push(c);});
+      await renderDocument();updateMeta();});
+  mk('Naik',0,'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"/></svg>',
+    async()=>{const i=pageIdx(p.id);if(i<1)return;snapshot();
+      [state.pages[i-1],state.pages[i]]=[state.pages[i],state.pages[i-1]];await renderDocument();});
+  mk('Turun',0,'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>',
+    async()=>{const i=pageIdx(p.id);if(i>=state.pages.length-1)return;snapshot();
+      [state.pages[i],state.pages[i+1]]=[state.pages[i+1],state.pages[i]];await renderDocument();});
+  mk('Hapus halaman',1,'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>',
+    async()=>{if(state.pages.length<=1)return toast('Tidak bisa menghapus halaman terakhir.');
+      snapshot();state.annotations=state.annotations.filter(a=>a.pageId!==p.id);
+      state.pages=state.pages.filter(x=>x.id!==p.id);await renderDocument();updateMeta();});
+  relabel();
+  return head;
+}
 
-        previewBtn.addEventListener('click', () => {
-            if (isRecording) return; setupAudioNodes();
-            if (!isPreviewing) {
-                isPreviewing = true; audioPlayer.play(); renderLoop();
-                previewBtn.innerText = "Pause Preview"; statusText.innerText = "Mode Preview Aktif.";
-            } else {
-                isPreviewing = false; audioPlayer.pause(); cancelAnimationFrame(animationFrameId);
-                previewBtn.innerText = "Play Preview"; statusText.innerText = "Preview dihentikan.";
-            }
-        });
+/* ---------- koordinat ---------- */
+function toPt(page,ev){
+  const rect=page.querySelector('canvas').getBoundingClientRect();
+  const cx=rect.left+rect.width/2,cy=rect.top+rect.height/2;
+  const dx=ev.clientX-cx,dy=ev.clientY-cy;
+  const r=page._rot*Math.PI/180,cos=Math.cos(r),sin=Math.sin(r);
+  const lx=dx*cos+dy*sin,ly=-dx*sin+dy*cos;
+  const px=lx+page._w/2,py=ly+page._h/2;
+  return{px,py,x:px/state.scale,y:py/state.scale};
+}
 
-        actionBtn.addEventListener('click', async () => {
-            if (isPreviewing) { isPreviewing = false; audioPlayer.pause(); cancelAnimationFrame(animationFrameId); previewBtn.innerText = "Play Preview"; }
-            
-            isRecording = true; actionBtn.disabled = true; previewBtn.disabled = true;
-            progressContainer.style.display = "block"; recordedChunks = [];
-            
-            await requestWakeLock(); // Mengunci perangkat agar tidak padam otomatis
-            setupAudioNodes();
+/* ---------- interaksi ---------- */
+function attachEvents(page,p,dcv){
+  page.addEventListener('pointerdown',e=>{
+    if(e.target.isContentEditable)return;
+    if(pinch.active)return;
+    const annoEl=e.target.closest('.anno');
+    const handle=e.target.classList.contains('rz');
+    if(state.tool==='select'||state.tool==='text'){
+      if(handle){startResize(e,annoEl,page);return;}
+      if(annoEl){const a=state.annotations.find(x=>x.id===annoEl.dataset.id);
+        if(a&&(a.type==='text'||a.type==='image'))startDrag(e,annoEl,a,page);}
+      return;
+    }
+    if(state.tool==='erase'){
+      if(annoEl){removeAnno(annoEl.dataset.id);suppressClick=true;return;}
+      eraseStroke(p,toPt(page,e));return;
+    }
+    if(state.tool==='image'){
+      if(!state.pendingImage){$('#imgInput').click();return;}
+      const c=toPt(page,e);placeImage(p,c.x,c.y);suppressClick=true;return;
+    }
+    if(state.tool==='pen'||state.tool==='highlight'){startStroke(e,page,p,dcv);}
+  });
 
-            const videoStream = canvas.captureStream(30);
-            const audioStream = audioPlayer.captureStream ? audioPlayer.captureStream() : audioPlayer.webkitCaptureStream();
-            const combinedStream = new MediaStream();
-            videoStream.getVideoTracks().forEach(track => combinedStream.addTrack(track));
-            audioStream.getAudioTracks().forEach(track => combinedStream.addTrack(track));
+  page.addEventListener('click',e=>{
+    if(suppressClick){suppressClick=false;return;}
+    if(e.target.isContentEditable)return;
+    if(state.tool!=='select'&&state.tool!=='text')return;
+    const annoEl=e.target.closest('.anno');
+    const nativeEl=e.target.closest('.native-text');
+    if(annoEl){const a=state.annotations.find(x=>x.id===annoEl.dataset.id);if(!a)return;
+      selectAnno(a.id);if(a.type==='text'||a.type==='edit')startEditing(annoEl,a,e);return;}
+    if(nativeEl){editNative(p,+nativeEl.dataset.idx,e);return;}
+    if(state.tool==='text'){const c=toPt(page,e);addTextAt(p,c.x,c.y,e);return;}
+    selectAnno(null);
+  });
 
-            let options = { mimeType: 'video/webm;codecs=vp8' };
-            if (!MediaRecorder.isTypeSupported(options.mimeType)) options = { mimeType: 'video/mp4' };
+  page.addEventListener('pointermove',e=>{
+    const c=toPt(page,e);
+    $('#stCoord').textContent=`x ${Math.max(0,c.x|0)} · y ${Math.max(0,c.y|0)} pt`;
+  },{passive:true});
+}
 
-            mediaRecorder = new MediaRecorder(combinedStream, options);
-            mediaRecorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) recordedChunks.push(e.data); };
-            mediaRecorder.onstop = () => {
-                cancelAnimationFrame(animationFrameId); releaseWakeLock(); // Melepas kunci layar
-                const blob = new Blob(recordedChunks, { type: mediaRecorder.mimeType });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a'); a.href = url;
-                a.download = `${artistText.value.trim()}_${titleText.value.trim()}.mp4`;
-                document.body.appendChild(a); a.click(); document.body.removeChild(a);
-                
-                statusText.innerText = "Selesai! Video berhasil diunduh ke HP.";
-                actionBtn.disabled = false; previewBtn.disabled = false; actionBtn.innerText = "Mulai Rekam Video";
-                progressContainer.style.display = "none"; isRecording = false;
-            };
+function startDrag(e,el,a,page){
+  if(e.pointerType==='mouse')e.preventDefault();
+  const start=toPt(page,e);const ox=a.x,oy=a.y;let moved=false,snapped=false;
+  const move=ev=>{
+    const c=toPt(page,ev);
+    if(!moved&&Math.hypot(c.px-start.px,c.py-start.py)<5)return;
+    if(!snapped){snapshot();snapped=true;}moved=true;suppressClick=true;
+    a.x=ox+(c.x-start.x);a.y=oy+(c.y-start.y);
+    el.style.left=(a.x*state.scale)+'px';el.style.top=(a.y*state.scale)+'px';
+  };
+  const up=()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);};
+  window.addEventListener('pointermove',move);window.addEventListener('pointerup',up);
+}
+function startResize(e,el,page){
+  e.preventDefault();e.stopPropagation();
+  const a=state.annotations.find(x=>x.id===el.dataset.id);if(!a||a.type!=='image')return;
+  const start=toPt(page,e);const ow=a.w,ratio=a.h/a.w;snapshot();
+  const move=ev=>{suppressClick=true;const c=toPt(page,ev);
+    a.w=Math.max(20,ow+(c.x-start.x));a.h=a.w*ratio;
+    el.style.width=(a.w*state.scale)+'px';el.style.height=(a.h*state.scale)+'px';};
+  const up=()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);};
+  window.addEventListener('pointermove',move);window.addEventListener('pointerup',up);
+}
 
-            audioPlayer.currentTime = 0; audioPlayer.play(); mediaRecorder.start(); renderLoop();
-            actionBtn.innerText = "Merekam... Mohon Tunggu";
-        });
+/* ---------- kursor di titik klik ---------- */
+function caretAt(el,ev){
+  const sel=getSelection();sel.removeAllRanges();let r=null;
+  try{
+    if(ev&&document.caretRangeFromPoint)r=document.caretRangeFromPoint(ev.clientX,ev.clientY);
+    else if(ev&&document.caretPositionFromPoint){const cp=document.caretPositionFromPoint(ev.clientX,ev.clientY);
+      if(cp){r=document.createRange();r.setStart(cp.offsetNode,cp.offset);}}
+  }catch(_){}
+  if(r&&el.contains(r.startContainer)){r.collapse(true);sel.addRange(r);return;}
+  const rr=document.createRange();rr.selectNodeContents(el);rr.collapse(false);sel.addRange(rr);
+}
 
-        audioPlayer.addEventListener('ended', () => {
-            if (mediaRecorder && mediaRecorder.state !== "inactive") mediaRecorder.stop();
-            if (isPreviewing) { isPreviewing = false; previewBtn.innerText = "Play Preview"; cancelAnimationFrame(animationFrameId); }
-        });
+/* ---------- pencocokan font otomatis dari pustaka online (@fontsource) ---------- */
+// Peta font berlisensi (MS/Apple) → padanan metric-compatible legal di @fontsource
+const MSMAP={
+  'arial':'arimo','helvetica':'arimo','arial narrow':'arimo','liberation sans':'arimo',
+  'times new roman':'tinos','times':'tinos','liberation serif':'tinos',
+  'courier new':'cousine','courier':'cousine','liberation mono':'cousine',
+  'calibri':'carlito','cambria':'caladea','georgia':'gelasio'
+};
+function cleanFontName(nm){
+  let s=(nm||'').replace(/^[A-Za-z0-9]{6}\+/,'');
+  s=s.replace(/\b(bold|italic|oblique|regular|medium|light|semibold|demibold|black|heavy|thin|condensed|narrow|book|roman|mt|ps|std|pro|ce)\b/gi,' ');
+  s=s.replace(/[_,\-]+/g,' ').replace(/\s+/g,' ').trim();
+  return s;
+}
+function slugify(s){return s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');}
 
-        drawPreview();
-    </script>
+const webCache={}, webFail=new Set();
+async function ensureWebFont(family,weight,italic,label){
+  const key=`${family}-${weight}-${italic?'i':'n'}`;
+  if(webCache[key])return webCache[key];
+  if(webFail.has(key))throw new Error('cached-fail');
+  const style=italic?'italic':'normal';
+  const url=`https://cdn.jsdelivr.net/npm/@fontsource/${family}/files/${family}-latin-${weight}-${style}.ttf`;
+  let res; try{res=await fetch(url);}catch(e){webFail.add(key);throw e;}
+  if(!res.ok){webFail.add(key);throw new Error('fetch '+res.status);}
+  const buf=await res.arrayBuffer();
+  const id='wf'+(uid++), cssFam='inkweb_'+id;
+  const ff=new FontFace(cssFam,buf,{weight:String(weight),style:italic?'italic':'normal'});
+  await ff.load();document.fonts.add(ff);
+  const rec={id,family:cssFam,bytes:new Uint8Array(buf.slice(0)),
+    label:(label||family)+(weight>=700?' Bold':'')+(italic?' Italic':''),auto:true};
+  state.customFonts.push(rec);webCache[key]=rec;return rec;
+}
+
+/* ---------- deteksi font otomatis (family + tebal/miring + nama asli) ---------- */
+async function detectFont(p,it){
+  let bold=false,italic=false,disp='',name='',fsId='',cat='sans';
+  try{
+    const st=state.textStyles.get(p.originalIndex)||{};
+    const fam=((st[it.fontName]&&st[it.fontName].fontFamily)||'').toLowerCase();
+    if(/mono/.test(fam)) cat='mono';
+    else if(/serif/.test(fam)&&!/sans/.test(fam)) cat='serif';
+    else cat='sans';
+  }catch(_){}
+  try{
+    const pg=await state.pdfjsDoc.getPage(p.originalIndex+1);
+    if(pg.commonObjs.has(it.fontName)){
+      const fo=pg.commonObjs.get(it.fontName);
+      disp=(fo&&fo.loadedName)||'';
+      const raw=((fo&&(fo.name||fo.loadedName))||'');
+      const nm=raw.toLowerCase();
+      bold  = !!(fo&&fo.bold)   || /bold|black|heavy|semibold|-bd|,bd/.test(nm);
+      italic= !!(fo&&fo.italic) || /italic|oblique|-it|,it/.test(nm);
+      // deteksi monospace kuat: nama + flag FixedPitch (bit-0) + properti pdf.js
+      const fixed=(fo&&(fo.isMonospace||fo.fixedPitch))||(fo&&typeof fo.flags==='number'&&(fo.flags&1));
+      if(fixed || /mono|courier|consol|typewriter|gothic|ocr|prestige|fixed|inconsolata|jetbrains|monaco|menlo|fira\s*code/.test(nm)) cat='mono';
+      else if(/times|georgia|roman|minion|garamond|serif|cambria|antiqua|palatino/.test(nm)&&!/sans/.test(nm)) cat='serif';
+      else if(/arial|helvetica|calibri|verdana|tahoma|segoe|frutiger|myriad|sans/.test(nm)) cat='sans';
+      name=cleanFontName(raw);
+      const low=name.toLowerCase();
+      if(MSMAP[low]) fsId=MSMAP[low];
+      else if(name.length>=3) fsId=slugify(name);   // coba tarik font apa pun dari pustaka via namanya
+    }
+  }catch(_){}
+  const font = cat==='mono'?'courier':(cat==='serif'?'times':'helv');
+  return {font,bold,italic,disp,name,fsId,cat};
+}
+
+/* ---------- edit teks native ---------- */
+function sampleInk(p,it){
+  // warna tinta asli = piksel TERGELAP di kotak teks (kebalikan sampleCover)
+  try{
+    const base=pageEls[p.id].base,ctx=base.getContext('2d');
+    const S=state.scale*DPR;
+    const x0=it.x*S, x1=(it.x+it.w)*S, y0=it.top*S, y1=(it.top+it.h)*S;
+    let best=[0,0,0], dl=1e9;
+    for(let gx=0;gx<=12;gx++)for(let gy=0;gy<=7;gy++){       // grid rapat → kena inti huruf
+      const px=Math.max(0,Math.min(base.width-1, Math.round(x0+(x1-x0)*gx/12)));
+      const py=Math.max(0,Math.min(base.height-1,Math.round(y0+(y1-y0)*gy/7)));
+      const d=ctx.getImageData(px,py,1,1).data;
+      const lum=d[0]+d[1]+d[2];
+      if(lum<dl){dl=lum;best=[d[0],d[1],d[2]];}
+    }
+    const mx=Math.max(best[0],best[1],best[2]), mn=Math.min(best[0],best[1],best[2]);
+    // gelap & netral → hitam pekat (hindari tampilan pudar); teks berwarna dipertahankan
+    if(dl<=180 && (mx-mn)<40) return '#000000';
+    return rgb2hex(best[0],best[1],best[2]);
+  }catch(_){return '#000000';}
+}
+function sampleCover(p,it){
+  try{
+    const base=pageEls[p.id].base,ctx=base.getContext('2d');
+    const S=state.scale*DPR;
+    const x0=(it.x-2)*S, x1=(it.x+it.w+2)*S;
+    const y0=(it.top-it.h*0.35)*S, y1=(it.top+it.h*1.35)*S;
+    const samples=[];
+    for(let gx=0;gx<=8;gx++)for(let gy=0;gy<=6;gy++){
+      const px=Math.max(0,Math.min(base.width-1, Math.round(x0+(x1-x0)*gx/8)));
+      const py=Math.max(0,Math.min(base.height-1,Math.round(y0+(y1-y0)*gy/6)));
+      const d=ctx.getImageData(px,py,1,1).data;
+      samples.push([d[0],d[1],d[2],d[0]+d[1]+d[2]]);
+    }
+    let mx=0; samples.forEach(s=>{if(s[3]>mx)mx=s[3];});
+    const bg=samples.filter(s=>s[3]>=mx-120);           // buang piksel gelap (huruf/garis)
+    const avg=[0,0,0]; bg.forEach(s=>{avg[0]+=s[0];avg[1]+=s[1];avg[2]+=s[2];});
+    const n=bg.length||1; avg[0]=Math.round(avg[0]/n);avg[1]=Math.round(avg[1]/n);avg[2]=Math.round(avg[2]/n);
+    const M=Math.max(avg[0],avg[1],avg[2]),mn=Math.min(avg[0],avg[1],avg[2]);
+    if((avg[0]+avg[1]+avg[2])>=735 && (M-mn)<=6) return '#ffffff';  // hanya putih netral
+    return rgb2hex(avg[0],avg[1],avg[2]);
+  }catch(_){return'#ffffff';}
+}
+async function editNative(p,idx,ev){
+  const items=state.textItems.get(p.originalIndex)||[];const it=items[idx];if(!it)return;
+  const exist=annosOf(p.id).find(a=>a.type==='edit'&&a.item===idx);
+  if(exist){const el=pageEls[p.id].alayer.querySelector(`[data-id="${exist.id}"]`);if(el)startEditing(el,exist,ev);return;}
+  const det=await detectFont(p,it);                    // deteksi font asli otomatis
+  let font=det.font,bold=det.bold,italic=det.italic;
+  if(det.fsId){                                        // coba tarik font dari pustaka online
+    toast('Mencocokkan font…',true);
+    try{
+      const rec=await ensureWebFont(det.fsId, bold?700:400, italic, det.name);
+      font='custom:'+rec.id;                            // bold/italic dipertahankan (FontFace sudah berbobot benar)
+      hideToast(); toast('Font "'+(det.name||det.fsId)+'" dicocokkan dari pustaka.');
+    }catch(_){ hideToast(); /* tak ada di pustaka / offline → pakai kategori dasar */ }
+  }
+  snapshot();
+  const a={id:nid(),pageId:p.id,type:'edit',item:idx,orig:it.str,
+    x:it.x,top:it.top,bl:it.bl,w:it.w,h:it.h,size:it.size,text:it.str,
+    color:sampleInk(p,it),cover:sampleCover(p,it),
+    font,bold,italic, det:{font,bold,italic}, dispFamily:det.disp};
+  state.annotations.push(a);refreshPage(p.id);updateMeta();
+  const el=pageEls[p.id].alayer.querySelector(`[data-id="${a.id}"]`);if(el)startEditing(el,a,ev);
+}
+
+/* ---------- teks baru ---------- */
+function addTextAt(p,x,y,ev){
+  snapshot();
+  const a={id:nid(),pageId:p.id,type:'text',x,y,text:'',size:state.fontSize,color:state.color,
+    font:state.font,bold:state.bold,italic:state.italic};
+  state.annotations.push(a);refreshPage(p.id);updateMeta();
+  const el=pageEls[p.id].alayer.querySelector(`[data-id="${a.id}"]`);if(el)startEditing(el,a,null);
+}
+
+/* ---------- bilah format mengambang (font / B / I) saat mengedit ---------- */
+let fmtBar=null, editingRef=null;
+function hideFmtBar(){if(fmtBar){fmtBar.remove();fmtBar=null;window.removeEventListener('scroll',fmtBar_pos,true);}}
+let fmtBar_pos=()=>{};
+function showFmtBar(el,a){
+  hideFmtBar();
+  let styled=false;
+  const snapOnce=()=>{if(!styled){snapshot();styled=true;}};
+  const bar=document.createElement('div');bar.className='fmt-bar';
+  const pd=(b,fn)=>{b.addEventListener('pointerdown',ev=>{ev.preventDefault();ev.stopPropagation();fn();});return b;};
+
+  // --- gaya (paling depan, selalu terlihat) ---
+  const bB=document.createElement('button');bB.className='sb'+(a.bold?' on':'');bB.textContent='B';bB.title='Tebal penuh';
+  pd(bB,()=>{snapOnce();a.bold=!a.bold;a.dispFamily=null;applyFontCss(el,a);sync();});
+  const bI=document.createElement('button');bI.className='si'+(a.italic?' on':'');bI.innerHTML='<span style="font-style:italic">I</span>';bI.title='Miring';
+  pd(bI,()=>{snapOnce();a.italic=!a.italic;a.dispFamily=null;applyFontCss(el,a);sync();});
+  bar.append(bB,bI);
+
+  // --- ketebalan halus ---
+  const wrap=document.createElement('span');wrap.className='wgrp';
+  const lab=document.createElement('span');lab.className='wlab';lab.textContent='Tebal';
+  const wDn=document.createElement('button');wDn.className='wt';wDn.textContent='–';wDn.title='Tipiskan';
+  pd(wDn,()=>{snapOnce();a.weight=Math.max(0,(a.weight||0)-0.12);applyFontCss(el,a);});
+  const wUp=document.createElement('button');wUp.className='wt';wUp.textContent='+';wUp.title='Tebalkan';
+  pd(wUp,()=>{snapOnce();a.weight=Math.min(1.4,(a.weight||0)+0.12);applyFontCss(el,a);});
+  wrap.append(lab,wDn,wUp);bar.appendChild(wrap);
+
+  const sep=document.createElement('span');sep.className='fsep';bar.appendChild(sep);
+
+  // --- pilihan font ---
+  fontOptions().forEach(o=>{
+    const b=document.createElement('button');b.className=o.cls||'';b.dataset.k=o.key;b.textContent=o.label;
+    if(o.family)b.style.fontFamily=`"${o.family}",sans-serif`;
+    pd(b,()=>{snapOnce();a.font=o.key;a.dispFamily=null;applyFontCss(el,a);sync();});bar.appendChild(b);
+  });
+  const add=document.createElement('button');add.className='addf';add.innerHTML='+';add.title='Muat font (.ttf/.otf)';
+  pd(add,()=>$('#fontInput').click());bar.appendChild(add);
+
+  const sync=()=>{bar.querySelectorAll('[data-k]').forEach(b=>b.classList.toggle('on',b.dataset.k===a.font));
+    bB.classList.toggle('on',a.bold);bI.classList.toggle('on',a.italic);};
+  document.body.appendChild(bar);fmtBar=bar;sync();
+  fmtBar_pos=()=>{ if(!fmtBar)return; const r=el.getBoundingClientRect();
+    const w=bar.offsetWidth||220, h=bar.offsetHeight||40;
+    bar.style.top=Math.max(60,r.top-h-6)+'px';
+    bar.style.left=Math.min(window.innerWidth-w-8,Math.max(8,r.left))+'px'; };
+  fmtBar_pos();
+  window.addEventListener('scroll',fmtBar_pos,true);
+}
+
+/* ---------- mesin edit ---------- */
+function startEditing(el,a,ev){
+  if(el.isContentEditable)return;
+  selectAnno(a.id);
+  el.setAttribute('contenteditable','true');el.spellcheck=false;
+  el.focus({preventScroll:false});caretAt(el,ev);
+  editingRef={el,a};
+  showFmtBar(el,a);
+  el.onpaste=pe=>{pe.preventDefault();
+    const t=(pe.clipboardData||window.clipboardData).getData('text/plain');
+    document.execCommand('insertText',false,a.type==='edit'?t.replace(/\n+/g,' '):t);};
+  el.onkeydown=ke=>{ke.stopPropagation();
+    if(ke.key==='Escape'){ke.preventDefault();el.blur();return;}
+    if(ke.key==='Enter'){ke.preventDefault();if(a.type==='edit'){el.blur();}else document.execCommand('insertLineBreak');}};
+  const finish=()=>{
+    hideFmtBar();editingRef=null;
+    el.onpaste=null;el.onkeydown=null;el.removeAttribute('contenteditable');
+    try{const s=getSelection();if(s)s.removeAllRanges();}catch(_){}  // bersihkan sorotan abu-abu
+    a.text=el.innerText.replace(/\n$/,'');
+    if(a.type==='text'&&!a.text.trim()){quietRemove(a.id);return;}
+    if(a.type==='edit'&&a.text===a.orig&&a.det&&a.font===a.det.font&&a.bold===a.det.bold&&a.italic===a.det.italic&&!(a.weight)){quietRemove(a.id);return;}
+    refreshPage(a.pageId);updateMeta();renderInspector();
+  };
+  el.addEventListener('blur',finish,{once:true});
+}
+
+/* ---------- gambar ---------- */
+function placeImage(p,x,y){
+  const im=state.pendingImage;if(!im)return;snapshot();
+  const maxW=Math.min(220,p.wpt*0.6),ratio=im.h/im.w;
+  state.annotations.push({id:nid(),pageId:p.id,type:'image',x,y,w:maxW,h:maxW*ratio,data:im.data,mime:im.mime});
+  refreshPage(p.id);updateMeta();
+}
+
+/* ---------- coretan ---------- */
+function startStroke(e,page,p,dcv){
+  e.preventDefault();try{page.setPointerCapture(e.pointerId);}catch(_){}
+  const isHL=state.tool==='highlight';
+  const anno={id:nid(),pageId:p.id,type:isHL?'highlight':'pen',
+    color:isHL?state.hlColor:state.color,width:isHL?state.hlW:state.penW,points:[]};
+  const ctx=dcv.getContext('2d');
+  ctx.save();ctx.setTransform(DPR*state.scale,0,0,DPR*state.scale,0,0);
+  ctx.globalAlpha=isHL?0.4:1;ctx.strokeStyle=anno.color;ctx.lineWidth=anno.width;ctx.lineCap='round';ctx.lineJoin='round';
+  const push=ev=>{const c=toPt(page,ev);anno.points.push({x:c.x,y:c.y});return c;};
+  let last=push(e);
+  const move=ev=>{const c=push(ev);ctx.beginPath();ctx.moveTo(last.x,last.y);ctx.lineTo(c.x,c.y);ctx.stroke();last=c;};
+  const up=()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);
+    ctx.restore();suppressClick=true;
+    if(anno.points.length){snapshot();state.annotations.push(anno);updateMeta();}refreshPage(p.id);};
+  window.addEventListener('pointermove',move);window.addEventListener('pointerup',up);
+}
+function eraseStroke(p,pt){
+  let best=null,bd=1e9;
+  annosOf(p.id).filter(a=>a.type==='pen'||a.type==='highlight').forEach(a=>{
+    a.points.forEach(q=>{const d=Math.hypot(q.x-pt.x,q.y-pt.y);if(d<bd){bd=d;best=a;}});});
+  if(best&&bd<Math.max(10,best.width))removeAnno(best.id);
+}
+
+/* ---------- seleksi ---------- */
+function selectAnno(id){
+  state.selected=id;
+  document.querySelectorAll('.anno').forEach(el=>el.classList.toggle('selected',el.dataset.id===id));
+  renderInspector();
+}
+function removeAnno(id){snapshot();quietRemove(id);}
+function quietRemove(id){
+  const a=state.annotations.find(x=>x.id===id);
+  state.annotations=state.annotations.filter(x=>x.id!==id);
+  if(state.selected===id)state.selected=null;
+  if(a)refreshPage(a.pageId);updateMeta();renderInspector();
+}
+
+/* ---------- tools & inspector ---------- */
+function setTool(t){
+  if(document.activeElement?.isContentEditable)document.activeElement.blur();
+  state.tool=t;state.selected=null;
+  document.querySelectorAll('.tool').forEach(b=>b.classList.toggle('active',b.dataset.tool===t));
+  document.body.className='tool-'+t;
+  $('#stTool').textContent='Alat: '+({select:'Pilih',text:'Teks',pen:'Pena',highlight:'Stabilo',image:'Gambar',erase:'Hapus'}[t]);
+  document.querySelectorAll('.anno').forEach(el=>el.classList.remove('selected'));
+  if(t==='image'&&!state.pendingImage)$('#imgInput').click();
+  renderInspector();
+}
+
+function fontField(get,set){
+  const f=document.createElement('div');f.className='field';f.innerHTML='<label>Font</label>';
+  const seg=document.createElement('div');seg.className='seg';
+  fontOptions().forEach(o=>{const b=document.createElement('button');
+    b.className='segbtn '+(o.cls||'')+(get().font===o.key?' on':'');b.textContent=o.label;
+    if(o.family)b.style.fontFamily=`"${o.family}",sans-serif`;
+    b.onclick=()=>set({font:o.key});seg.appendChild(b);});
+  f.appendChild(seg);
+  const ld=document.createElement('button');ld.className='mini';ld.style.marginTop='9px';
+  ld.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15V3m0 0L8 7m4-4l4 4M5 21h14"/></svg> Muat font (.ttf/.otf)';
+  ld.onclick=()=>$('#fontInput').click();
+  f.appendChild(ld);
+  return f;
+}
+function styleField(get,set){
+  const f=document.createElement('div');f.className='field';f.innerHTML='<label>Gaya</label>';
+  const row=document.createElement('div');row.className='stylerow';
+  const bb=document.createElement('button');bb.className='stybtn b'+(get().bold?' on':'');bb.textContent='B';bb.title='Tebal';
+  bb.onclick=()=>set({bold:!get().bold});
+  const bi=document.createElement('button');bi.className='stybtn i'+(get().italic?' on':'');bi.textContent='I';bi.title='Miring';
+  bi.onclick=()=>set({italic:!get().italic});
+  row.append(bb,bi);f.appendChild(row);return f;
+}
+
+function renderInspector(){
+  const title=$('#propTitle'),body=$('#propBody');body.innerHTML='';
+  const sel=state.annotations.find(a=>a.id===state.selected);
+  const sw=(colors,cur,fn)=>{const w=document.createElement('div');w.className='swatches';
+    colors.forEach(c=>{const b=document.createElement('button');
+      b.className='swatch'+(c.toLowerCase()===cur.toLowerCase()?' on':'');b.style.background=c;
+      if(c==='#FFFFFF')b.style.boxShadow='inset 0 0 0 1px #999';b.onclick=()=>fn(c);w.appendChild(b);});return w;};
+  const rng=(lab,val,min,max,st,unit,fn)=>{const f=document.createElement('div');f.className='field';
+    f.innerHTML=`<label>${lab}</label>`;const row=document.createElement('div');row.className='rrow';
+    const r=Object.assign(document.createElement('input'),{type:'range',min,max,step:st,value:val});
+    const v=document.createElement('span');v.className='rval';v.textContent=val+unit;
+    r.oninput=()=>{v.textContent=r.value+unit;fn(+r.value);};row.append(r,v);f.appendChild(row);return f;};
+  const cf=(lab,cur,colors,fn)=>{const f=document.createElement('div');f.className='field';
+    f.innerHTML=`<label>${lab}</label>`;f.appendChild(sw(colors,cur,fn));return f;};
+  const annoSet=a=>patch=>{snapshot();if('font'in patch||'bold'in patch||'italic'in patch)a.dispFamily=null;Object.assign(a,patch);refreshPage(a.pageId);renderInspector();};
+
+  if(sel&&(sel.type==='edit'||sel.type==='text')){
+    title.textContent=sel.type==='edit'?'Teks PDF disunting':'Teks terpilih';
+    body.appendChild(fontField(()=>sel,annoSet(sel)));
+    body.appendChild(styleField(()=>sel,annoSet(sel)));
+    body.appendChild(cf('Warna teks',sel.color,PALETTE,c=>annoSet(sel)({color:c})));
+    body.appendChild(rng('Ukuran font',Math.round(sel.size),6,72,1,' pt',v=>{sel.size=v;refreshPage(sel.pageId);}));
+    body.appendChild(rng('Ketebalan',Math.round((sel.weight||0)*100),0,140,5,'',v=>{sel.weight=v/100;refreshPage(sel.pageId);}));
+    if(sel.type==='edit'){
+      const cf2=document.createElement('div');cf2.className='field';cf2.innerHTML='<label>Warna latar penutup</label>';
+      const row=document.createElement('div');row.className='rrow';
+      const ci=document.createElement('input');ci.type='color';ci.value=(/^#[0-9a-fA-F]{6}$/.test(sel.cover||'')?sel.cover:'#ffffff');
+      ci.style.cssText='width:46px;height:34px;padding:0;border:1px solid var(--line-2);border-radius:8px;background:none;cursor:pointer;flex:none';
+      ci.oninput=()=>{sel.cover=ci.value;refreshPage(sel.pageId);};
+      const cw=document.createElement('button');cw.className='mini';cw.style.margin='0';cw.textContent='Putih';
+      cw.onclick=()=>{sel.cover='#ffffff';refreshPage(sel.pageId);renderInspector();};
+      row.append(ci,cw);cf2.appendChild(row);body.appendChild(cf2);
+      const b=document.createElement('button');b.className='mini';b.textContent='Pulihkan teks asli';
+      b.onclick=()=>removeAnno(sel.id);body.appendChild(b);}
+    return;
+  }
+  if(sel&&sel.type==='image'){
+    title.textContent='Gambar terpilih';
+    body.innerHTML='<p class="hint">Seret untuk memindah, tarik sudut kanan-bawah untuk ubah ukuran. <span class="kbd">Del</span> menghapus.</p>';
+    return;
+  }
+  const heads={select:'Pilih',text:'Alat Teks',pen:'Alat Pena',highlight:'Alat Stabilo',image:'Alat Gambar',erase:'Hapus Objek'};
+  title.textContent=heads[state.tool];
+  if(state.tool==='select'){
+    body.innerHTML='<p class="hint">Ketuk <b>teks PDF</b> untuk langsung menyuntingnya — lalu atur font, tebal/miring, warna &amp; ukuran di sini. Seret objek untuk memindah.</p>';
+  }else if(state.tool==='text'){
+    body.appendChild(fontField(()=>state,p=>{Object.assign(state,p);renderInspector();}));
+    body.appendChild(styleField(()=>state,p=>{Object.assign(state,p);renderInspector();}));
+    body.appendChild(cf('Warna teks',state.color,PALETTE,c=>{state.color=c;renderInspector();}));
+    body.appendChild(rng('Ukuran font',state.fontSize,8,72,1,' pt',v=>state.fontSize=v));
+  }else if(state.tool==='pen'){
+    body.appendChild(cf('Warna tinta',state.color,PALETTE,c=>{state.color=c;renderInspector();}));
+    body.appendChild(rng('Ketebalan',state.penW,1,12,0.5,' pt',v=>state.penW=v));
+  }else if(state.tool==='highlight'){
+    body.appendChild(cf('Warna sorot',state.hlColor,HL,c=>{state.hlColor=c;renderInspector();}));
+    body.appendChild(rng('Lebar',state.hlW,6,32,1,' pt',v=>state.hlW=v));
+  }else if(state.tool==='image'){
+    const p=document.createElement('p');p.className='hint';
+    p.innerHTML=state.pendingImage?'Gambar siap — ketuk halaman untuk menempatkan.':'Pilih PNG/JPG, lalu ketuk halaman untuk menempatkan.';
+    body.appendChild(p);
+    const b=document.createElement('button');b.className='mini';b.textContent=state.pendingImage?'Ganti gambar':'Pilih gambar';
+    b.onclick=()=>$('#imgInput').click();body.appendChild(b);
+  }else if(state.tool==='erase'){
+    body.innerHTML='<p class="hint">Ketuk objek, suntingan teks, atau coretan untuk menghapus. Menghapus suntingan teks akan memulihkan teks asli.</p>';
+  }
+}
+
+function updateMeta(){
+  $('#docMeta').querySelector('.fname').textContent=state.fileName||'Belum ada file';
+  $('#mPages').textContent=state.pages.length||'—';
+  $('#mText').textContent=state.pdfjsDoc?state.textCount+' blok':'—';
+  $('#mAnno').textContent=state.annotations.length;
+  saveSession();
+}
+
+/* ---------- zoom berjangkar ---------- */
+let zoomT=null,zoomJob=null;
+function zoomTo(target,clientX,clientY){
+  target=Math.min(8,Math.max(0.3,target));
+  const rect=workspace.getBoundingClientRect();
+  const vx=(clientX!=null?clientX-rect.left:rect.width/2);
+  const vy=(clientY!=null?clientY-rect.top :rect.height/2);
+  if(!zoomJob)zoomJob={from:state.scale,sl:workspace.scrollLeft,st:workspace.scrollTop,vx,vy};
+  zoomJob.target=target;setZoomUI(target);
+  // pratinjau CSS instan (mulus) sebelum render ulang tajam
+  doc.style.transformOrigin=`${zoomJob.sl+vx}px ${zoomJob.st+vy}px`;
+  doc.style.transform=`scale(${(target/zoomJob.from).toFixed(4)})`;
+  clearTimeout(zoomT);
+  zoomT=setTimeout(async()=>{
+    const j=zoomJob;zoomJob=null;
+    doc.style.transform='';doc.style.transformOrigin='';
+    if(Math.abs(j.target-state.scale)<0.001)return;
+    state.scale=j.target;await renderDocument();
+    const r=j.target/j.from;
+    workspace.scrollLeft=(j.sl+j.vx)*r-j.vx;
+    workspace.scrollTop =(j.st+j.vy)*r-j.vy;
+  },180);
+}
+const curZoom=()=>zoomJob?zoomJob.target:state.scale;
+
+function fitWidth(rerender=true){
+  if(!state.pages.length)return;
+  zoomJob=null;clearTimeout(zoomT);
+  const p=state.pages[0],swap=(p.rotation%180!==0);
+  const wpt=swap?p.hpt:p.wpt;
+  const pad=window.innerWidth<=760?24:70;
+  state.scale=Math.min(8,Math.max(0.3,(workspace.clientWidth-pad)/wpt));
+  setZoomUI(state.scale);
+  if(rerender)renderDocument().then(()=>{workspace.scrollLeft=0;});
+}
+
+/* ---------- cubit 2 jari (kustom, crisp) ---------- */
+const pinch={active:false,d0:0,s0:1,live:1,st:0,sl:0,cx:0,cy:0};
+const tdist=t=>Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY);
+workspace.addEventListener('touchstart',e=>{
+  if(e.touches.length===2&&state.pages.length){
+    if(document.activeElement?.isContentEditable)document.activeElement.blur();
+    const rect=workspace.getBoundingClientRect();
+    pinch.active=true;
+    pinch.d0=tdist(e.touches);pinch.s0=state.scale;pinch.live=state.scale;
+    pinch.st=workspace.scrollTop;pinch.sl=workspace.scrollLeft;
+    pinch.cx=((e.touches[0].clientX+e.touches[1].clientX)/2)-rect.left;
+    pinch.cy=((e.touches[0].clientY+e.touches[1].clientY)/2)-rect.top;
+    doc.style.transformOrigin=`${pinch.sl+pinch.cx}px ${pinch.st+pinch.cy}px`;
+  }
+},{passive:true});
+workspace.addEventListener('touchmove',e=>{
+  if(pinch.active&&e.touches.length===2){
+    e.preventDefault();
+    const k=tdist(e.touches)/pinch.d0;
+    pinch.live=Math.min(8,Math.max(0.3,pinch.s0*k));
+    doc.style.transform=`scale(${pinch.live/state.scale})`;
+    setZoomUI(pinch.live);
+  }
+},{passive:false});
+async function endPinch(){
+  if(!pinch.active)return;
+  pinch.active=false;const s=pinch.live;
+  doc.style.transform='';doc.style.transformOrigin='';
+  if(Math.abs(s-state.scale)>0.01){
+    const ratio=s/state.scale;state.scale=s;await renderDocument();
+    workspace.scrollLeft=(pinch.sl+pinch.cx)*ratio-pinch.cx;
+    workspace.scrollTop =(pinch.st+pinch.cy)*ratio-pinch.cy;
+  }
+  setZoomUI(state.scale);
+}
+workspace.addEventListener('touchend',e=>{if(e.touches.length<2)endPinch();},{passive:true});
+workspace.addEventListener('touchcancel',()=>endPinch(),{passive:true});
+workspace.addEventListener('wheel',e=>{
+  if(e.ctrlKey&&state.pages.length){e.preventDefault();zoomTo(curZoom()*(e.deltaY<0?1.1:0.9),e.clientX,e.clientY);}
+},{passive:false});
+
+/* ---------- ekspor ---------- */
+async function exportPDF(){
+  if(!state.pages.length)return;
+  if(document.activeElement?.isContentEditable)document.activeElement.blur();
+  toast('Menyusun PDF…',true);
+  try{
+    const{PDFDocument,rgb,degrees,StandardFonts}=PDFLib;
+    const src=await PDFDocument.load(state.originalBytes,{ignoreEncryption:true});
+    const out=await PDFDocument.create();
+    try{ if(window.fontkit) out.registerFontkit(window.fontkit); }catch(_){}
+    const imgCache={},fontCache={};
+    const FONT_STD={
+      helv:['Helvetica','HelveticaBold','HelveticaOblique','HelveticaBoldOblique'],
+      times:['TimesRoman','TimesRomanBold','TimesRomanItalic','TimesRomanBoldItalic'],
+      courier:['Courier','CourierBold','CourierOblique','CourierBoldOblique']
+    };
+    async function getFont(a){
+      if(typeof a.font==='string'&&a.font.startsWith('custom:')){
+        const cf=state.customFonts.find(c=>c.id===a.font.slice(7));
+        if(cf){const key='c:'+cf.id;
+          if(!fontCache[key])fontCache[key]=await out.embedFont(cf.bytes,{subset:false});
+          return fontCache[key];}
+      }
+      const fam=(a.font in FONT_STD)?a.font:'helv';const key=fam+'-'+(a.bold?1:0)+(a.italic?1:0);
+      if(!fontCache[key]){const idx=(a.bold?1:0)+(a.italic?2:0);
+        fontCache[key]=await out.embedFont(StandardFonts[FONT_STD[fam][idx]]);}
+      return fontCache[key];
+    }
+    // gambar teks dengan ketebalan halus (offset berlapis) bila weight>0
+    const drawWeighted=(page,txt,opts,w)=>{
+      if(w>0){const o=w*0.42;
+        for(const dd of [[o,0],[-o,0],[0,o],[0,-o],[o,o],[-o,-o],[o,-o],[-o,o]])
+          page.drawText(txt,{...opts,x:opts.x+dd[0],y:opts.y+dd[1]});}
+      page.drawText(txt,opts);
+    };
+    for(const ps of state.pages){
+      let page;
+      if(ps.originalIndex>=0){const[cp]=await out.copyPages(src,[ps.originalIndex]);page=out.addPage(cp);}
+      else page=out.addPage([ps.wpt,ps.hpt]);
+      const H=page.getSize().height;
+      for(const a of annosOf(ps.id)){
+        const isCustom=(typeof a.font==='string'&&a.font.startsWith('custom:'));
+        const enc=s=>isCustom?(s||''):latin1(s);   // font kustom: biarkan Unicode utuh
+        try{
+          if(a.type==='edit'){
+            const fnt=await getFont(a);const txt=enc(a.text);
+            const tw=fnt.widthOfTextAtSize(txt||' ',a.size);const cw=Math.max(a.w,tw)+4;
+            const cc=hex2rgb(a.cover||'#ffffff');
+            page.drawRectangle({x:a.x-2,y:H-a.top-a.h-2,width:cw,height:a.h+4,color:rgb(cc.r,cc.g,cc.b)});
+            const tc=hex2rgb(a.color);
+            drawWeighted(page,txt,{x:a.x,y:H-a.bl,size:a.size,font:fnt,color:rgb(tc.r,tc.g,tc.b)},a.weight||0);
+          }else if(a.type==='text'){
+            const fnt=await getFont(a);const c=hex2rgb(a.color);
+            enc(a.text).split('\n').forEach((ln,i)=>{
+              drawWeighted(page,ln,{x:a.x,y:H-a.y-a.size*0.82-(i*a.size*1.25),size:a.size,font:fnt,color:rgb(c.r,c.g,c.b)},a.weight||0);});
+          }else if(a.type==='pen'||a.type==='highlight'){
+            if(!a.points.length)continue;
+            const d='M '+a.points.map(q=>`${q.x.toFixed(2)} ${q.y.toFixed(2)}`).join(' L ');
+            const c=hex2rgb(a.color);
+            page.drawSvgPath(d,{x:0,y:H,borderColor:rgb(c.r,c.g,c.b),borderWidth:a.width,
+              borderOpacity:a.type==='highlight'?0.4:1,borderLineCap:1});
+          }else if(a.type==='image'){
+            const key=a.data.slice(0,64)+a.data.length;
+            if(!imgCache[key]){const bytes=Uint8Array.from(atob(a.data.split(',')[1]),ch=>ch.charCodeAt(0));
+              imgCache[key]=a.mime==='image/png'?await out.embedPng(bytes):await out.embedJpg(bytes);}
+            page.drawImage(imgCache[key],{x:a.x,y:H-a.y-a.h,width:a.w,height:a.h});
+          }
+        }catch(err){console.warn('Lewati anotasi:',err);}
+      }
+      if(ps.rotation)page.setRotation(degrees(((page.getRotation().angle||0)+ps.rotation)%360));
+    }
+    out.setProducer('Inkline — © SRISP 2026');
+    const data=await out.save();
+    const url=URL.createObjectURL(new Blob([data],{type:'application/pdf'}));
+    const a=document.createElement('a');
+    a.href=url;a.download=(state.fileName||'dokumen').replace(/\.pdf$/i,'')+'-edit.pdf';a.click();
+    setTimeout(()=>URL.revokeObjectURL(url),4000);
+    hideToast();toast('PDF berhasil diekspor ✓');setStatus('Diekspor');
+  }catch(e){console.error(e);hideToast();toast('Gagal mengekspor PDF.');}
+}
+
+/* ---------- file input & drag-drop ---------- */
+const openFile=()=>$('#fileInput').click();
+$('#fileInput').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();r.onload=()=>loadPDF(r.result,f.name);r.readAsArrayBuffer(f);e.target.value='';});
+$('#imgInput').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=()=>{const img=new Image();img.onload=()=>{
+    state.pendingImage={data:r.result,mime:f.type,w:img.naturalWidth,h:img.naturalHeight};
+    if(state.tool!=='image')setTool('image');else renderInspector();
+    toast('Gambar dimuat — ketuk halaman untuk menempatkan.');
+  };img.src=r.result;};
+  r.readAsDataURL(f);e.target.value='';});
+['dragenter','dragover'].forEach(ev=>document.addEventListener(ev,e=>{e.preventDefault();$('#drop')?.classList.add('over');}));
+['dragleave','drop'].forEach(ev=>document.addEventListener(ev,e=>{e.preventDefault();$('#drop')?.classList.remove('over');}));
+document.addEventListener('drop',e=>{const f=[...(e.dataTransfer?.files||[])].find(x=>x.type==='application/pdf');if(!f)return;
+  const r=new FileReader();r.onload=()=>loadPDF(r.result,f.name);r.readAsArrayBuffer(f);});
+
+/* ---------- penyimpanan sesi (IndexedDB) — file tak hilang saat refresh ---------- */
+const IDB_NAME='inkline_db', IDB_STORE='session';
+function idbOpen(){return new Promise((res,rej)=>{const r=indexedDB.open(IDB_NAME,1);
+  r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains(IDB_STORE))r.result.createObjectStore(IDB_STORE);};
+  r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
+async function idbPut(k,v){try{const db=await idbOpen();await new Promise((res,rej)=>{const tx=db.transaction(IDB_STORE,'readwrite');tx.objectStore(IDB_STORE).put(v,k);tx.oncomplete=res;tx.onerror=()=>rej(tx.error);});}catch(_){}}
+async function idbGet(k){try{const db=await idbOpen();return await new Promise((res)=>{const tx=db.transaction(IDB_STORE,'readonly');const rq=tx.objectStore(IDB_STORE).get(k);rq.onsuccess=()=>res(rq.result);rq.onerror=()=>res(null);});}catch(_){return null;}}
+
+let saveT=null;
+function saveSession(){
+  if(!state.pdfjsDoc||!state.originalBytes)return;
+  clearTimeout(saveT);
+  saveT=setTimeout(async()=>{
+    try{
+      await idbPut('current',{
+        v:11, fileName:state.fileName, scale:state.scale, uid,
+        bytes:state.originalBytes.slice(),
+        pages:JSON.parse(JSON.stringify(state.pages)),
+        annotations:JSON.parse(JSON.stringify(state.annotations)),
+        fonts:state.customFonts.map(c=>({id:c.id,label:c.label,family:c.family,auto:!!c.auto,bytes:c.bytes.slice()}))
+      });
+    }catch(_){}
+  },700);
+}
+
+async function rebuildTextData(){
+  state.textItems.clear();state.textStyles.clear();state.textCount=0;
+  for(let i=0;i<state.pdfjsDoc.numPages;i++){
+    const pg=await state.pdfjsDoc.getPage(i+1);const vp=pg.getViewport({scale:1});
+    const tc=await pg.getTextContent();const items=[];
+    for(const it of tc.items){ if(!it.str||!it.str.trim())continue;
+      const tr=pdfjsLib.Util.transform(vp.transform,it.transform);
+      if(Math.abs(Math.atan2(tr[1],tr[0]))>0.02)continue;
+      const fh=Math.hypot(tr[2],tr[3])||10;const bl=tr[5];
+      items.push({str:it.str,x:tr[4],bl,top:bl-fh*0.86,w:it.width||fh*it.str.length*0.5,h:fh,size:fh,fontName:it.fontName});
+    }
+    state.textItems.set(i,items);state.textStyles.set(i,tc.styles||{});state.textCount+=items.length;
+  }
+}
+
+async function restoreSession(){
+  let data=null; try{data=await idbGet('current');}catch(_){}
+  if(!data||!data.bytes)return false;
+  try{
+    toast('Memulihkan sesi terakhir…',true);
+    const bytes=data.bytes instanceof Uint8Array?data.bytes:new Uint8Array(data.bytes);
+    state.originalBytes=bytes.slice();
+    state.fileName=data.fileName||'dokumen.pdf';
+    state.pdfjsDoc=await pdfjsLib.getDocument({data:bytes.slice()}).promise;
+    await rebuildTextData();
+    state.customFonts=[];
+    for(const cf of (data.fonts||[])){
+      try{const b=cf.bytes instanceof Uint8Array?cf.bytes:new Uint8Array(cf.bytes);
+        const ff=new FontFace(cf.family,b.slice().buffer);await ff.load();document.fonts.add(ff);
+        state.customFonts.push({id:cf.id,label:cf.label,family:cf.family,auto:cf.auto,bytes:b.slice()});
+      }catch(_){}
+    }
+    state.pages=data.pages||[];state.annotations=data.annotations||[];
+    uid=data.uid||1;state.scale=data.scale||1.2;state.history=[];state.selected=null;
+    empty.style.display='none';
+    ['exportBtn','zoomIn','zoomOut','fitBtn2','addBlank'].forEach(id=>$('#'+id).disabled=false);
+    await renderDocument();updateMeta();renderInspector();
+    hideToast();toast('Sesi terakhir dipulihkan.');
+    return true;
+  }catch(e){console.warn('restore gagal',e);hideToast();return false;}
+}
+
+/* ---------- bind ---------- */
+$('#openBtn').onclick=openFile;$('#openBtn2').onclick=e=>{e.stopPropagation();openFile();};
+$('#drop').onclick=openFile;
+$('#fontInput').addEventListener('change',async e=>{
+  const f=e.target.files[0];e.target.value='';if(!f)return;
+  let buf; try{buf=await f.arrayBuffer();}catch(_){return;}
+  const id='cf'+(uid++), family='inkfont_'+id;
+  try{const ff=new FontFace(family,buf);await ff.load();document.fonts.add(ff);}
+  catch(err){console.error(err);toast('Font tidak didukung. Gunakan .ttf atau .otf.');return;}
+  const label=f.name.replace(/\.[a-zA-Z0-9]+$/,'').slice(0,16)||('Font '+(state.customFonts.length+1));
+  state.customFonts.push({id,label,family,bytes:new Uint8Array(buf.slice(0))});
+  toast('Font "'+label+'" dimuat & siap ditanam.');
+  if(editingRef){ // sedang mengedit → langsung pakai font ini
+    editingRef.a.font='custom:'+id;applyFontCss(editingRef.el,editingRef.a);
+    showFmtBar(editingRef.el,editingRef.a);try{editingRef.el.focus();}catch(_){}
+  }
+  renderInspector();
+});
+$('#exportBtn').onclick=exportPDF;
+$('#undoBtn').onclick=undo;
+$('#addBlank').onclick=async()=>{snapshot();
+  state.pages.push({id:nid(),originalIndex:-1,rotation:0,wpt:A4.w,hpt:A4.h});
+  await renderDocument();updateMeta();workspace.scrollTo({top:workspace.scrollHeight,behavior:'smooth'});};
+$('#zoomIn').onclick=()=>zoomTo(curZoom()+0.15);
+$('#zoomOut').onclick=()=>zoomTo(curZoom()-0.15);
+$('#fitBtn2').onclick=()=>{fitWidth();if(window.innerWidth<=1060)$('#inspector').classList.remove('open');};
+$('#inspToggle').onclick=()=>$('#inspector').classList.toggle('open');
+document.querySelectorAll('.tool').forEach(b=>b.onclick=()=>{setTool(b.dataset.tool);
+  if(window.innerWidth<=1060)$('#inspector').classList.remove('open');});
+
+document.addEventListener('keydown',e=>{
+  const editing=document.activeElement?.isContentEditable;
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){if(!editing){e.preventDefault();undo();}return;}
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();exportPDF();return;}
+  if(editing)return;
+  if((e.key==='Delete'||e.key==='Backspace')&&state.selected){e.preventDefault();removeAnno(state.selected);return;}
+  if(e.key==='Escape'){selectAnno(null);$('#inspector').classList.remove('open');return;}
+  const map={v:'select',t:'text',p:'pen',h:'highlight',i:'image',e:'erase'};
+  if(map[e.key.toLowerCase()])setTool(map[e.key.toLowerCase()]);
+});
+
+let rsT=null;
+window.addEventListener('resize',()=>{clearTimeout(rsT);rsT=setTimeout(()=>{if(state.pages.length&&!document.activeElement?.isContentEditable)fitWidth();},250);});
+
+renderInspector();
+restoreSession();
+</script>
 </body>
 </html>
