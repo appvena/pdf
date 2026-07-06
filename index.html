@@ -638,7 +638,7 @@ function drawOverlay(cv,p){
   ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,cv.width,cv.height);
   ctx.setTransform(pr*state.scale,0,0,pr*state.scale,0,0);
   annosOf(p.id).filter(a=>a.type==='edit').forEach(a=>{
-    ctx.fillStyle=a.cover||'#ffffff';ctx.fillRect(a.x-1.5,a.top-2,a.w+3,a.h+4);
+    ctx.fillStyle=a.cover||'#ffffff';ctx.fillRect(a.x,a.top,a.w,a.h+a.size*0.15);
   });
   ctx.lineCap='round';ctx.lineJoin='round';
   annosOf(p.id).filter(a=>a.type==='pen'||a.type==='highlight').forEach(a=>{
@@ -691,7 +691,7 @@ function buildAnnoLayer(layer,p){
     }else if(a.type==='edit'){
       el.style.left=(a.x*state.scale)+'px';el.style.top=((a.bl-a.size*0.86)*state.scale)+'px';
       applyFontCss(el,a);el.style.fontSize=(a.size*state.scale)+'px';el.style.color=a.color;
-      el.style.background=a.cover||'#fff';el.style.minWidth=(a.w*state.scale)+'px';el.style.minHeight=(a.h*state.scale)+'px';
+      el.style.background=a.cover||'#fff';el.style.width=(a.w*state.scale)+'px';el.style.minHeight=(a.h*state.scale)+'px';
       el.innerText=a.text;
     }else if(a.type==='image'){
       el.style.left=(a.x*state.scale)+'px';el.style.top=(a.y*state.scale)+'px';
@@ -1321,9 +1321,9 @@ async function exportPDF(){
         try{
           if(a.type==='edit'){
             const fnt=await getFont(a);const txt=enc(a.text);
-            const tw=fnt.widthOfTextAtSize(txt||' ',a.size);const cw=Math.max(a.w,tw)+4;
+            const cw=a.w;
             const cc=hex2rgb(a.cover||'#ffffff');
-            page.drawRectangle({x:a.x-2,y:H-a.top-a.h-2,width:cw,height:a.h+4,color:rgb(cc.r,cc.g,cc.b)});
+            page.drawRectangle({x:a.x,y:H-a.top-a.h-a.size*0.15,width:cw,height:a.h+a.size*0.15,color:rgb(cc.r,cc.g,cc.b)});
             const tc=hex2rgb(a.color);
             drawWeighted(page,txt,{x:a.x,y:H-a.bl,size:a.size,font:fnt,color:rgb(tc.r,tc.g,tc.b)},a.weight||0);
           }else if(a.type==='text'){
