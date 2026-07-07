@@ -696,7 +696,9 @@ function buildAnnoLayer(layer,p){
     }else if(a.type==='image'){
       el.style.left=(a.x*state.scale)+'px';el.style.top=(a.y*state.scale)+'px';
       el.style.width=(a.w*state.scale)+'px';el.style.height=(a.h*state.scale)+'px';
-      const img=document.createElement('img');img.src=a.data;el.appendChild(img);
+      const img=document.createElement('img');img.src=a.data;
+      img.style.mixBlendMode=(a.blend==='normal')?'normal':'multiply';
+      el.appendChild(img);
       const rz=document.createElement('div');rz.className='rz';el.appendChild(rz);
     }
     layer.appendChild(el);
@@ -1045,7 +1047,7 @@ function startEditing(el,a,ev){
 function placeImage(p,x,y){
   const im=state.pendingImage;if(!im)return;snapshot();
   const maxW=Math.min(220,p.wpt*0.6),ratio=im.h/im.w;
-  state.annotations.push({id:nid(),pageId:p.id,type:'image',x,y,w:maxW,h:maxW*ratio,data:im.data,mime:im.mime});
+  state.annotations.push({id:nid(),pageId:p.id,type:'image',x,y,w:maxW,h:maxW*ratio,data:im.data,mime:im.mime,blend:'multiply'});
   refreshPage(p.id);updateMeta();
 }
 
@@ -1162,6 +1164,17 @@ function renderInspector(){
   if(sel&&sel.type==='image'){
     title.textContent='Gambar terpilih';
     body.innerHTML='<p class="hint">Seret untuk memindah, tarik sudut kanan-bawah untuk ubah ukuran. <span class="kbd">Del</span> menghapus.</p>';
+    const tb=document.createElement('button');tb.className='mini';
+    const setTbl=()=>{const on=(sel.blend!=='normal');
+      tb.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg> '
+        +(on?'Latar tembus: AKTIF (stempel)':'Latar tembus: nonaktif');
+      tb.style.borderColor=on?'var(--gold)':'var(--line-2)';tb.style.color=on?'var(--gold-2)':'';};
+    setTbl();
+    tb.onclick=()=>{snapshot();sel.blend=(sel.blend==='normal')?'multiply':'normal';refreshPage(sel.pageId);setTbl();};
+    body.appendChild(tb);
+    const note=document.createElement('p');note.className='hint';note.style.marginTop='10px';
+    note.innerHTML='Mode <b>tembus</b> membuat area putih stempel / tanda tangan jadi transparan sehingga teks di bawahnya tetap terlihat. Matikan untuk foto atau gambar solid.';
+    body.appendChild(note);
     return;
   }
   const heads={select:'Pilih',text:'Alat Teks',pen:'Alat Pena',highlight:'Alat Stabilo',image:'Alat Gambar',erase:'Hapus Objek'};
@@ -1281,7 +1294,7 @@ async function exportPDF(){
   if(document.activeElement?.isContentEditable)document.activeElement.blur();
   toast('Menyusun PDF…',true);
   try{
-    const{PDFDocument,rgb,degrees,StandardFonts}=PDFLib;
+    const{PDFDocument,rgb,degrees,StandardFonts,BlendMode}=PDFLib;
     const src=await PDFDocument.load(state.originalBytes,{ignoreEncryption:true});
     const out=await PDFDocument.create();
     try{ if(window.fontkit) out.registerFontkit(window.fontkit); }catch(_){}
@@ -1340,7 +1353,9 @@ async function exportPDF(){
             const key=a.data.slice(0,64)+a.data.length;
             if(!imgCache[key]){const bytes=Uint8Array.from(atob(a.data.split(',')[1]),ch=>ch.charCodeAt(0));
               imgCache[key]=a.mime==='image/png'?await out.embedPng(bytes):await out.embedJpg(bytes);}
-            page.drawImage(imgCache[key],{x:a.x,y:H-a.y-a.h,width:a.w,height:a.h});
+            const iopt={x:a.x,y:H-a.y-a.h,width:a.w,height:a.h};
+            if(a.blend!=='normal'&&BlendMode)iopt.blendMode=BlendMode.Multiply;
+            page.drawImage(imgCache[key],iopt);
           }
         }catch(err){console.warn('Lewati anotasi:',err);}
       }
