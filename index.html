@@ -633,13 +633,56 @@ async function buildPage(p,store){
 function refreshPage(pid){const p=pageById(pid),els=pageEls[pid];if(!p||!els)return;paintPage(p,els);}
 function paintPage(p,els){drawOverlay(els.dcv,p);buildTextLayer(els.tlayer,p);buildAnnoLayer(els.alayer,p);}
 
+// rekonstruksi latar: isi kotak [x0,y0..x1,y1] dengan warna yang diinterpolasi
+// dari tepi kiri & kanan tiap baris → gradasi/warna solid menyatu, teks lama terhapus.
+function bgFill(baseCv,x0,y0,x1,y1){
+  const w=x1-x0,h=y1-y0;if(w<=0||h<=0)return null;
+  const pad=3;
+  const gx0=Math.max(0,x0-pad),gx1=Math.min(baseCv.width,x1+pad),gw=gx1-gx0;
+  const bctx=baseCv.getContext('2d');
+  const src=bctx.getImageData(gx0,y0,gw,h).data;
+  const li=x0-gx0, ri=x1-1-gx0;
+  const out=bctx.createImageData(w,h);const od=out.data;
+  for(let r=0;r<h;r++){
+    let lr=0,lg=0,lb=0,ln=0;
+    for(let c=Math.max(0,li-pad);c<li;c++){const k=(r*gw+c)*4;lr+=src[k];lg+=src[k+1];lb+=src[k+2];ln++;}
+    if(!ln){const k=(r*gw+Math.max(0,li))*4;lr=src[k];lg=src[k+1];lb=src[k+2];ln=1;}
+    lr/=ln;lg/=ln;lb/=ln;
+    let rr=0,rg=0,rb=0,rn=0;
+    for(let c=ri+1;c<=Math.min(gw-1,ri+pad);c++){const k=(r*gw+c)*4;rr+=src[k];rg+=src[k+1];rb+=src[k+2];rn++;}
+    if(!rn){const k=(r*gw+Math.min(gw-1,ri))*4;rr=src[k];rg=src[k+1];rb=src[k+2];rn=1;}
+    rr/=rn;rg/=rn;rb/=rn;
+    for(let c=0;c<w;c++){const t=w>1?c/(w-1):0;const o=(r*w+c)*4;
+      od[o]=lr+(rr-lr)*t;od[o+1]=lg+(rg-lg)*t;od[o+2]=lb+(rb-lb)*t;od[o+3]=255;}
+  }
+  return out;
+}
+// PNG penutup untuk ekspor, hasil rekonstruksi latar
+function eraserPatch(p,a){
+  const baseCv=pageEls[p.id]&&pageEls[p.id].base;if(!baseCv)return null;
+  const S=effPR(p)*state.scale;
+  const x0=Math.max(0,Math.floor(a.x*S)),y0=Math.max(0,Math.floor(a.top*S));
+  const x1=Math.min(baseCv.width,Math.ceil((a.x+a.w)*S)),y1=Math.min(baseCv.height,Math.ceil((a.top+a.h+a.size*0.15)*S));
+  const out=bgFill(baseCv,x0,y0,x1,y1);if(!out)return null;
+  const cnv=document.createElement('canvas');cnv.width=out.width;cnv.height=out.height;
+  cnv.getContext('2d').putImageData(out,0,0);return cnv.toDataURL('image/png');
+}
+
 function drawOverlay(cv,p){
-  const ctx=cv.getContext('2d');const pr=effPR(p);
+  const ctx=cv.getContext('2d');const pr=effPR(p);const S=pr*state.scale;
   ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,cv.width,cv.height);
-  ctx.setTransform(pr*state.scale,0,0,pr*state.scale,0,0);
+  // penutup teks yang diedit: hanya tutupi piksel gelap (tinta lama),
+  // biarkan bagian terang (watermark/latar) tetap tembus. Gagal → kotak solid.
+  const baseCv=pageEls[p.id]&&pageEls[p.id].base;
   annosOf(p.id).filter(a=>a.type==='edit').forEach(a=>{
-    ctx.fillStyle=a.cover||'#ffffff';ctx.fillRect(a.x,a.top,a.w,a.h+a.size*0.15);
+    const x0=Math.max(0,Math.floor(a.x*S)),y0=Math.max(0,Math.floor(a.top*S));
+    const x1=Math.min(cv.width,Math.ceil((a.x+a.w)*S)),y1=Math.min(cv.height,Math.ceil((a.top+a.h+a.size*0.15)*S));
+    const w=x1-x0,h=y1-y0;if(w<=0||h<=0)return;
+    let done=false;
+    if(baseCv){try{const out=bgFill(baseCv,x0,y0,x1,y1);if(out){ctx.putImageData(out,x0,y0);done=true;}}catch(_){}}
+    if(!done){ctx.fillStyle=a.cover||'#ffffff';ctx.fillRect(x0,y0,w,h);}
   });
+  ctx.setTransform(S,0,0,S,0,0);
   ctx.lineCap='round';ctx.lineJoin='round';
   annosOf(p.id).filter(a=>a.type==='pen'||a.type==='highlight').forEach(a=>{
     if(!a.points.length)return;
@@ -691,7 +734,7 @@ function buildAnnoLayer(layer,p){
     }else if(a.type==='edit'){
       el.style.left=(a.x*state.scale)+'px';el.style.top=((a.bl-a.size*0.86)*state.scale)+'px';
       applyFontCss(el,a);el.style.fontSize=(a.size*state.scale)+'px';el.style.color=a.color;
-      el.style.background=a.cover||'#fff';el.style.width=(a.w*state.scale)+'px';el.style.minHeight=(a.h*state.scale)+'px';
+      el.style.background='transparent';el.style.width=(a.w*state.scale)+'px';el.style.minHeight=(a.h*state.scale)+'px';
       el.innerText=a.text;
     }else if(a.type==='image'){
       el.style.left=(a.x*state.scale)+'px';el.style.top=(a.y*state.scale)+'px';
@@ -1334,9 +1377,19 @@ async function exportPDF(){
         try{
           if(a.type==='edit'){
             const fnt=await getFont(a);const txt=enc(a.text);
-            const cw=a.w;
             const cc=hex2rgb(a.cover||'#ffffff');
-            page.drawRectangle({x:a.x,y:H-a.top-a.h-a.size*0.15,width:cw,height:a.h+a.size*0.15,color:rgb(cc.r,cc.g,cc.b)});
+            const ch=a.h+a.size*0.15;
+            let patched=false;
+            try{
+              const durl=eraserPatch(ps,a);
+              if(durl){
+                const mb=Uint8Array.from(atob(durl.split(',')[1]),c=>c.charCodeAt(0));
+                const mimg=await out.embedPng(mb);
+                page.drawImage(mimg,{x:a.x,y:H-a.top-ch,width:a.w,height:ch});
+                patched=true;
+              }
+            }catch(_){}
+            if(!patched)page.drawRectangle({x:a.x,y:H-a.top-a.h-a.size*0.15,width:a.w,height:ch,color:rgb(cc.r,cc.g,cc.b)});
             const tc=hex2rgb(a.color);
             drawWeighted(page,txt,{x:a.x,y:H-a.bl,size:a.size,font:fnt,color:rgb(tc.r,tc.g,tc.b)},a.weight||0);
           }else if(a.type==='text'){
