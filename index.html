@@ -994,10 +994,11 @@ async function editNative(p,idx,ev){
     }catch(_){ hideToast(); /* tak ada di pustaka / offline → pakai kategori dasar */ }
   }
   snapshot();
+  const _ink=sampleInk(p,it), _cov=sampleCover(p,it);
   const a={id:nid(),pageId:p.id,type:'edit',item:idx,orig:it.str,
     x:it.x,top:it.top,bl:it.bl,w:it.w,h:it.h,size:it.size,text:it.str,
-    color:sampleInk(p,it),cover:sampleCover(p,it),
-    font,bold,italic, det:{font,bold,italic}, dispFamily:det.disp};
+    color:_ink,cover:_cov,
+    font,bold,italic, det:{font,bold,italic,color:_ink,cover:_cov}, dispFamily:det.disp};
   state.annotations.push(a);refreshPage(p.id);updateMeta();
   const el=pageEls[p.id].alayer.querySelector(`[data-id="${a.id}"]`);if(el)startEditing(el,a,ev);
 }
@@ -1049,6 +1050,19 @@ function showFmtBar(el,a){
   const add=document.createElement('button');add.className='addf';add.innerHTML='+';add.title='Muat font (.ttf/.otf)';
   pd(add,()=>$('#fontInput').click());bar.appendChild(add);
 
+  // --- warna teks (mutasi langsung, tanpa kehilangan fokus) ---
+  const sepc=document.createElement('span');sepc.className='fsep';bar.appendChild(sepc);
+  const cwrap=document.createElement('span');cwrap.className='wgrp';
+  const syncCol=()=>cwrap.querySelectorAll('[data-col]').forEach(b=>
+    b.style.outline=(b.dataset.col.toLowerCase()===(a.color||'').toLowerCase())?'2px solid var(--gold)':'none');
+  PALETTE.forEach(col=>{
+    const cbn=document.createElement('button');cbn.dataset.col=col;
+    cbn.style.cssText='width:20px;height:20px;min-width:20px;padding:0;border-radius:50%;background:'+col+(col==='#FFFFFF'?';box-shadow:inset 0 0 0 1px #999':'');
+    pd(cbn,()=>{snapOnce();a.color=col;el.style.color=col;applyFontCss(el,a);syncCol();});
+    cwrap.appendChild(cbn);
+  });
+  bar.appendChild(cwrap);syncCol();
+
   const sync=()=>{bar.querySelectorAll('[data-k]').forEach(b=>b.classList.toggle('on',b.dataset.k===a.font));
     bB.classList.toggle('on',a.bold);bI.classList.toggle('on',a.italic);};
   document.body.appendChild(bar);fmtBar=bar;sync();
@@ -1080,7 +1094,7 @@ function startEditing(el,a,ev){
     try{const s=getSelection();if(s)s.removeAllRanges();}catch(_){}  // bersihkan sorotan abu-abu
     a.text=el.innerText.replace(/\n$/,'');
     if(a.type==='text'&&!a.text.trim()){quietRemove(a.id);return;}
-    if(a.type==='edit'&&a.text===a.orig&&a.det&&a.font===a.det.font&&a.bold===a.det.bold&&a.italic===a.det.italic&&!(a.weight)){quietRemove(a.id);return;}
+    if(a.type==='edit'&&a.text===a.orig&&a.det&&a.font===a.det.font&&a.bold===a.det.bold&&a.italic===a.det.italic&&a.color===a.det.color&&a.cover===a.det.cover&&!(a.weight)){quietRemove(a.id);return;}
     refreshPage(a.pageId);updateMeta();renderInspector();
   };
   el.addEventListener('blur',finish,{once:true});
